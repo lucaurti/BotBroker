@@ -1,0 +1,724 @@
+﻿@{
+    Broker.Common.WebAPI.Models.MyWebAPISettings settings = Broker.Common.Utility.Misc.GenerateMyWebAPISettings();
+    string title = "STRATEGY: " + Broker.Common.Utility.Misc.GetStrategy + 
+        " - PAIR: " + settings.Asset + "/" + settings.Currency + 
+        " - EXCHANGE: " + Broker.Common.Utility.Misc.GetExchange;
+    string tickerType = "WebSocket";
+    if (!Broker.Common.WebAPI.Extension.UseWebSocketTickers) {
+        tickerType = Broker.Common.Utility.Misc.GetTickerTime + " sec";
+    }
+    ViewData["Title"] = "Live - Broker";
+    ViewData["SubTitle"] = title;
+}
+
+<div class="text-center">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script>
+    <div class="row">
+        <div class="col-sm-12">
+            <p class="border text-center" style="padding: 10px; font-size: 0.8em; color: grey;" id="header_index"></p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-6">
+            <canvas id="myTickers" height="200" ondblclick="openGraph('tickers');"></canvas>
+        </div>
+        <div class="col-sm-6">
+            <canvas id="myCandles" height="200" ondblclick="openGraph('candles');"></canvas>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-6">
+            <canvas id="myMACDs" height="200" ondblclick="openGraph('macd');"></canvas>
+        </div>
+        <div class="col-sm-6">
+            <canvas id="myEMAs" height="200" ondblclick="openGraph('ema');"></canvas>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-6">
+            <canvas id="myMomentum" height="200" ondblclick="openGraph('momentum');"></canvas>
+        </div>
+        <div class="col-sm-6">
+            <canvas id="myRSI" height="200" ondblclick="openGraph('rsi');"></canvas>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-6">
+            <canvas id="myBalance" height="200" ondblclick="openGraph('balance');"></canvas>
+        </div>
+        <div class="col-sm-6">
+            <canvas id="myOrder" height="200" ondblclick="openGraph('order');"></canvas>
+        </div>
+    </div>
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-sm-12">
+            <textarea id="myLogs" rows="20" style="width: 100%;" readonly="readonly"></textarea>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="graphModal" tabindex="-1" role="dialog" aria-labelledby="graphModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-full" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="graphModalLabel">Detail</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <canvas id="myModalGraph"></canvas>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script>
+        var ctxTickers = document.getElementById('myTickers').getContext('2d');
+        var ctxCandles = document.getElementById('myCandles').getContext('2d');
+        var ctxEMAs = document.getElementById('myEMAs').getContext('2d');
+        var ctxMACDs = document.getElementById('myMACDs').getContext('2d');
+        var ctxMomentums = document.getElementById('myMomentum').getContext('2d');
+        var ctxRSIs = document.getElementById('myRSI').getContext('2d');
+        var ctxBalance = document.getElementById('myBalance').getContext('2d');
+        var ctxOrder = document.getElementById('myOrder').getContext('2d');
+        var ctxGraph = document.getElementById('myModalGraph').getContext('2d');
+        var originalLineDraw = Chart.controllers.line.prototype.draw;
+        $(document).ready(function () 
+        {
+            GetTickers(ctxTickers);
+            GetCandles(ctxCandles);
+            GetMACDs(ctxMACDs);
+            GetEMAs(ctxEMAs);
+            GetMomentums(ctxMomentums);
+            GetRSIs(ctxRSIs);
+            GetBalance(ctxBalance);
+            GetOrder(ctxOrder);
+            $.getJSON('@Url.Action("GetLogs")', function (logs) 
+            {
+                if (logs != null && !jQuery.isEmptyObject(logs)) 
+                    $.each(logs, function (index, logs) 
+                    {  
+                        $("#myLogs").append(logs + '\n');
+                    });
+            });
+            $.getJSON('@Url.Action("GetHeader")', function (header) 
+            {
+                if (header != null && !jQuery.isEmptyObject(header)) 
+                    $.each(header, function (index, header) 
+                    {  
+                        $("#header_index").append(header + '<br />');
+                    });
+            });
+            window.setTimeout(function(){ location.reload(); }, 900000);
+        });
+        function GetTickers(ctxTickers) 
+        {
+            var myTickers = new Chart(ctxTickers, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [
+                    {
+                        data: [],
+                        fill: false,
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        pointRadius: 0
+                    }]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "Registred Tickers (@tickerType)",
+                    },
+                    legend: 
+                    {
+                        display: false
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetTickers")', function (tickers) 
+            {
+                if (tickers != null && !jQuery.isEmptyObject(tickers)) 
+                {
+                    $.each(tickers, function (index, ticker) 
+                    {
+                        myTickers.data.labels.push(new Date(ticker.data).ToHHMM());
+                        myTickers.data.datasets[0].data.push(ticker.price);
+                    });
+                    myTickers.update();
+                };
+            });
+        }
+        function GetCandles(ctxCandles) 
+        {
+            var myCandles = new Chart(ctxCandles, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        fill: false,
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        pointRadius: 0
+                    }]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "Registred Candles (@Broker.Common.Utility.Misc.GetCandleTime min)",
+                    },
+                    legend: 
+                    {
+                        display: false
+                    },
+                    scales: 
+                    {
+                        yAxes: [
+                        {
+                            id: 'A',
+                            position: 'left'
+                        }
+                        ]
+                    },
+                    annotation: {
+                        annotations: [
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            borderColor: "green",
+                            label: {
+                                content: "buy up",
+                                enabled: true,
+                                position: "top"
+                            }
+                        },
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            borderColor: "green",
+                            label: {
+                                content: "last buy",
+                                enabled: true,
+                                position: "top"
+                            }
+                        },
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            borderColor: "red",
+                            label: {
+                                content: "last sell",
+                                enabled: true,
+                                position: "top"
+                            }
+                        },
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            borderColor: "red",
+                            label: {
+                                content: "stop loss",
+                                enabled: true,
+                                position: "top"
+                            }
+                        }
+                        ]
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetCandles")', function (candles) 
+            {
+                if (candles != null && !jQuery.isEmptyObject(candles)) 
+                {
+                    $.each(candles.candles, function (index, candle) 
+                    {
+                        myCandles.data.labels.push(new Date(candle.data).ToDateTimeString());
+                        myCandles.data.datasets[0].data.push(candle.price);
+                    });
+                    if (candles.buyAtUp > 0) 
+                        myCandles.options.annotation.annotations[0].value = candles.buyAtUp;
+                    else
+                        myCandles.options.annotation.annotations[0].hidden = true;
+                    if (candles.lastBuy > 0) 
+                        myCandles.options.annotation.annotations[1].value = candles.lastBuy;
+                    else
+                        myCandles.options.annotation.annotations[1].hidden = true;
+                    if (candles.lastSell > 0) 
+                        myCandles.options.annotation.annotations[2].value = candles.lastSell;
+                    else
+                        myCandles.options.annotation.annotations[2].hidden = true;
+                    if (candles.stoploss > 0) 
+                        myCandles.options.annotation.annotations[3].value = candles.stoploss;
+                    else
+                        myCandles.options.annotation.annotations[3].hidden = true;
+                    myCandles.update();
+                };
+            });
+        }
+        function GetMACDs(ctxMACDs) 
+        {
+            var myMACDs = new Chart(ctxMACDs, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [
+                    {
+                        label: 'MACD',
+                        data: [],
+                        fill: false,
+                        borderColor: 'red',
+                        borderWidth: 1,
+                        yAxisID: 'A',
+                        pointRadius: 0
+                    }, {
+                        label: 'Signal',
+                        fill: false,
+                        data: [],
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        yAxisID: 'A',
+                        pointRadius: 0
+                    }, {
+                        label: 'Candle',
+                        fill: false,
+                        data: [],
+                        borderColor: 'green',
+                        borderWidth: 1,
+                        yAxisID: 'B',
+                        pointRadius: 0,
+                        hidden: true,
+                    }
+                    ]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "MACD Average (12, 26, 9)",
+                    },
+                    legend: 
+                    {
+                        display: true
+                    },
+                    scales: 
+                    {
+                        yAxes: [
+                        {
+                            id: 'A',
+                            position: 'left',
+                        }, 
+                        {
+                            id: 'B',
+                            position: 'right'
+                        }
+                        ]
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetMACDs")', function (macds) 
+            {
+                if (macds != null && !jQuery.isEmptyObject(macds)) 
+                {
+                    $.each(macds, function (index, macds) 
+                    {
+                        myMACDs.data.labels.push(new Date(macds.data).ToDateTimeString());
+                        myMACDs.data.datasets[0].data.push(macds.macd);
+                        myMACDs.data.datasets[1].data.push(macds.signal);
+                        myMACDs.data.datasets[2].data.push(macds.close);
+                    });
+                    myMACDs.update();
+                };
+            });
+        }
+        function GetEMAs(ctxEMAs) 
+        {
+            var myEMAs = new Chart(ctxEMAs, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [
+                    {
+                        label: 'EMA Fast',
+                        data: [],
+                        fill: false,
+                        borderColor: 'red',
+                        borderWidth: 1,
+                        yAxisID: 'A',
+                        pointRadius: 0
+                    }, {
+                        label: 'EMA Slow',
+                        fill: false,
+                        data: [],
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        yAxisID: 'A',
+                        pointRadius: 0
+                    }, {
+                        label: 'Candle',
+                        fill: false,
+                        data: [],
+                        borderColor: 'green',
+                        borderWidth: 1,
+                        yAxisID: 'B',
+                        pointRadius: 0,
+                        hidden: true,
+                    }
+                    ]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "EMA Average (12, 26)",
+                    },
+                    legend: 
+                    {
+                        display: true
+                    },
+                    scales: 
+                    {
+                        yAxes: [
+                        {
+                            id: 'A',
+                            position: 'left',
+                        }, 
+                        {
+                            id: 'B',
+                            position: 'right'
+                        }
+                        ]
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetEMAs")', function (emas) 
+            {
+                if (emas != null && !jQuery.isEmptyObject(emas)) 
+                {
+                    $.each(emas, function (index, emas) 
+                    {
+                        myEMAs.data.labels.push(new Date(emas.data).ToDateTimeString());
+                        myEMAs.data.datasets[0].data.push(emas.macd);
+                        myEMAs.data.datasets[1].data.push(emas.signal);
+                        myEMAs.data.datasets[2].data.push(emas.close);
+                    });
+                    myEMAs.update();
+                };
+            });
+        }
+        function GetMomentums(ctxMomentums) 
+        {
+            var myMomentums = new Chart(ctxMomentums, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [
+                    {
+                        label: 'Momentum',
+                        data: [],
+                        fill: false,
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        pointRadius: 0
+                    }, {
+                        label: 'Candle',
+                        fill: false,
+                        data: [],
+                        borderColor: 'green',
+                        borderWidth: 1,
+                        yAxisID: 'B',
+                        pointRadius: 0,
+                        hidden: true,
+                    }
+                    ]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "Momentum Average (10)",
+                    },
+                    legend: 
+                    {
+                        display: true
+                    },
+                    scales: 
+                    {
+                        yAxes: [
+                        {
+                            id: 'A',
+                            position: 'left'
+                        }, 
+                        {
+                            id: 'B',
+                            position: 'right'
+                        }
+                        ]
+                    },
+                    annotation: {
+                        annotations: [
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            value: "0",
+                            borderColor: "red"
+                        }
+                        ]
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetMomentums")', function (momentum) 
+            {
+                if (momentum != null && !jQuery.isEmptyObject(momentum)) 
+                {
+                    $.each(momentum, function (index, momentum) 
+                    {
+                        myMomentums.data.labels.push(new Date(momentum.data).ToDateTimeString());
+                        myMomentums.data.datasets[0].data.push(momentum.macd);
+                        myMomentums.data.datasets[1].data.push(momentum.close);
+                    });
+                    myMomentums.update();
+                };
+            });
+        }
+        function GetRSIs(ctxRSIs) 
+        {
+            var myRSIs = new Chart(ctxRSIs, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [
+                    {
+                        label: 'RSI',
+                        data: [],
+                        fill: false,
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        pointRadius: 0
+                    }, {
+                        label: 'Candle',
+                        fill: false,
+                        data: [],
+                        borderColor: 'green',
+                        borderWidth: 1,
+                        yAxisID: 'B',
+                        pointRadius: 0,
+                        hidden: true,
+                    }
+                    ]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "RSI Average (14)",
+                    },
+                    legend: 
+                    {
+                        display: true
+                    },
+                    scales: 
+                    {
+                        yAxes: [
+                        {
+                            id: 'A',
+                            position: 'left',
+                            ticks: {
+                                min: 20,
+                                max: 80
+                            }
+                        }, 
+                        {
+                            id: 'B',
+                            position: 'right'
+                        }
+                        ]
+                    },
+                    annotation: {
+                        annotations: [
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            value: "30",
+                            borderColor: "green",
+                            label: {
+                                content: "buy",
+                                enabled: true,
+                                position: "top"
+                            }
+                        },
+                        {
+                            type: "line",
+                            mode: "horizontal",
+                            scaleID: "A",
+                            value: "70",
+                            borderColor: "red",
+                            label: {
+                                content: "sell",
+                                enabled: true,
+                                position: "top"
+                            }
+                        }
+                        ]
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetRSIs")', function (rsi) 
+            {
+                if (rsi != null && !jQuery.isEmptyObject(rsi)) 
+                {
+                    $.each(rsi, function (index, rsi) 
+                    {
+                        myRSIs.data.labels.push(new Date(rsi.data).ToDateTimeString());
+                        myRSIs.data.datasets[0].data.push(rsi.macd);
+                        myRSIs.data.datasets[1].data.push(rsi.close);
+                    });
+                    myRSIs.update();
+                };
+            });
+        }
+        function GetBalance(ctxBalance) 
+        {
+            var myBalance = new Chart(ctxBalance, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        fill: false,
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        pointRadius: 0
+                    }]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "Balance (in @settings.Currency)",
+                    },
+                    legend: 
+                    {
+                        display: false
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetBalance")', function (balances) 
+            {
+                if (balances != null && !jQuery.isEmptyObject(balances)) 
+                {
+                    $.each(balances, function (index, balances) 
+                    {
+                        myBalance.data.labels.push(new Date(balances.data).ToDateTimeString());
+                        myBalance.data.datasets[0].data.push(balances.price);
+                    });
+                    myBalance.update();
+                };
+            });
+        }
+        function GetOrder(ctxOrder) 
+        {
+            var myOrder = new Chart(ctxOrder, 
+            {
+                type: 'line',
+                data: 
+                {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        fill: false,
+                        borderColor: 'blue',
+                        borderWidth: 1,
+                        pointRadius: 3,
+                        pointBorderColor: "red"
+                    }]
+                },
+                options: 
+                {
+                    responsive: true,
+                    title: 
+                    {
+                        display: true,
+                        text: "Order progress (in @settings.Currency)",
+                    },
+                    legend: 
+                    {
+                        display: false
+                    }
+                }
+            });
+            $.getJSON('@Url.Action("GetOrder")', function (orders) 
+            {
+                if (orders != null && !jQuery.isEmptyObject(orders)) 
+                {
+                    $.each(orders, function (index, orders) 
+                    {
+                        myOrder.data.labels.push(new Date(orders.data).ToDateTimeString());
+                        myOrder.data.datasets[0].data.push(orders.price);
+                    });
+                    myOrder.update();
+                };
+            });
+        }
+        function openGraph(typeGraph) 
+        {
+            if (typeGraph == 'tickers')
+                GetTickers(ctxGraph);
+            else if (typeGraph == 'candles')
+                GetCandles(ctxGraph);
+            else if (typeGraph == 'macd')
+                GetMACDs(ctxGraph);
+            else if (typeGraph == 'ema')
+                GetEMAs(ctxGraph);
+            else if (typeGraph == 'momentum')
+                GetMomentums(ctxGraph);
+            else if (typeGraph == 'rsi')
+                GetRSIs(ctxGraph);
+            else if (typeGraph == 'balance')
+                GetBalance(ctxGraph);
+            else if (typeGraph == 'order')
+                GetOrder(ctxGraph);
+            $('#graphModal').modal('toggle');
+        }
+    </script>
+
+</div>
