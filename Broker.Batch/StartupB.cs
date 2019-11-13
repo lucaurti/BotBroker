@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Text;
 
 namespace Broker.Batch
 {
@@ -27,83 +28,83 @@ namespace Broker.Batch
         // services endpoint
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            Log.Information("*** Broker started ***");
-
-
-            // init
-            myWebAPIList = ServiceLocator.Current.GetInstance<IList<MyWebAPI>>();
-            strategy = ServiceLocator.Current.GetInstance<MyStrategy>();
-            foreach (MyWebAPI webapi in myWebAPIList)
+            try
             {
-                //tickers
-                if (!Extension.UseWebSocketTickers)
-                    timerTicker = new Timer(
-                        (e) => TimerTicker_Elapsed(webapi),
+                Log.Information("*** Broker started ***");
+
+                // init
+                myWebAPIList = ServiceLocator.Current.GetInstance<IList<MyWebAPI>>();
+                strategy = ServiceLocator.Current.GetInstance<MyStrategy>();
+                foreach (MyWebAPI webapi in myWebAPIList)
+                {
+                    //tickers
+                    if (!Extension.UseWebSocketTickers)
+                        timerTicker = new Timer(
+                            (e) => TimerTicker_Elapsed(webapi),
+                            null,
+                            TimeSpan.Zero,
+                            TimeSpan.FromSeconds(Misc.GetTickerTime));
+
+                   //candles
+                   timerCandle = new Timer(
+                       (e) => TimerCandle_Elapsed(webapi),
+                       null,
+                       Misc.RoundDateTimeCandle,
+                       TimeSpan.FromMinutes(Misc.GetCandleTime));
+
+                    // remove old Ticker
+                    timerRemoveOldTicker = new Timer(
+                        (e) => TimerRemoveOldTicker_Elapsed(webapi),
                         null,
-                        TimeSpan.Zero,
-                        TimeSpan.FromSeconds(Misc.GetTickerTime));
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromMinutes(Misc.GetCandleTime));
 
-               //candles
-               timerCandle = new Timer(
-                   (e) => TimerCandle_Elapsed(webapi),
-                   null,
-                   Misc.RoundDateTimeCandle,
-                   TimeSpan.FromMinutes(Misc.GetCandleTime));
+                    // remove old rsi
+                    timerRemoveOldRsi = new Timer(
+                        (e) => TimerRemoveOldRSI_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromMinutes(Misc.GetCandleTime));
 
-                // remove old Ticker
-                timerRemoveOldTicker = new Timer(
-                    (e) => TimerRemoveOldTicker_Elapsed(webapi),
-                    null,
-                    Misc.RoundDateTimeCandle,
-                    TimeSpan.FromMinutes(Misc.GetCandleTime));
+                    // remove old momentum
+                    timerRemoveOldMomentum = new Timer(
+                        (e) => TimerRemoveOldMomentum_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromMinutes(Misc.GetCandleTime));
 
-                // remove old rsi
-                timerRemoveOldRsi = new Timer(
-                    (e) => TimerRemoveOldRSI_Elapsed(webapi),
-                    null,
-                    Misc.RoundDateTimeCandle,
-                    TimeSpan.FromMinutes(Misc.GetCandleTime));
-
-                // remove old momentum
-                timerRemoveOldMomentum = new Timer(
-                    (e) => TimerRemoveOldMomentum_Elapsed(webapi),
-                    null,
-                    Misc.RoundDateTimeCandle,
-                    TimeSpan.FromMinutes(Misc.GetCandleTime));
-
-                // remove old macd
-                timerRemoveOldMacd = new Timer(
-                    (e) => TimerRemoveOldMacd_Elapsed(webapi),
-                    null,
-                    Misc.RoundDateTimeCandle,
-                    TimeSpan.FromMinutes(Misc.GetCandleTime));
+                    // remove old macd
+                    timerRemoveOldMacd = new Timer(
+                        (e) => TimerRemoveOldMacd_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromMinutes(Misc.GetCandleTime));
+                }
             }
-            //try
-            //{
-            //    myWebAPIList.FirstOrDefault().GetTicker();
-            //    myWebAPIList.FirstOrDefault().GetCandle();
-            //    myWebAPIList.FirstOrDefault().RemoveOldTicker();
-            //    myWebAPIList.FirstOrDefault().RemoveOldMacd();
-            //    myWebAPIList.FirstOrDefault().RemoveOldMomentums();
-            //    myWebAPIList.FirstOrDefault().RemoveOldRSI();
-            //}
-            //catch (Exception ex)
-            //{
-
-            //}
+            catch (Exception ex)
+            {
+                Utils.LogError(ex);
+            }
             return Task.CompletedTask;
-
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            timerTicker?.Change(Timeout.Infinite, 0);
-            timerCandle?.Change(Timeout.Infinite, 0);
-            timerRemoveOldTicker?.Change(Timeout.Infinite, 0);
-            timerRemoveOldMacd?.Change(Timeout.Infinite, 0);
-            timerRemoveOldMomentum?.Change(Timeout.Infinite, 0);
-            timerRemoveOldRsi?.Change(Timeout.Infinite, 0);
-            Log.Information("*** Broker ended ***");
+            try
+            {
+                timerTicker?.Change(Timeout.Infinite, 0);
+                timerCandle?.Change(Timeout.Infinite, 0);
+                timerRemoveOldTicker?.Change(Timeout.Infinite, 0);
+                timerRemoveOldMacd?.Change(Timeout.Infinite, 0);
+                timerRemoveOldMomentum?.Change(Timeout.Infinite, 0);
+                timerRemoveOldRsi?.Change(Timeout.Infinite, 0);
+                Log.Information("*** Broker ended ***");
+                
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex);
+            }
             return Task.CompletedTask;
         }
 
@@ -118,7 +119,7 @@ namespace Broker.Batch
             }
             catch (Exception ex)
             {
-                Log.Error(ex.Message + " " + ex.StackTrace);
+                Utils.LogError(ex);
             }
         }
 
@@ -131,7 +132,7 @@ namespace Broker.Batch
             }
             catch (Exception ex)
             {
-                Log.Error(ex.Message + " " + ex.StackTrace);
+                Utils.LogError(ex);
             }
         }
 
@@ -144,7 +145,7 @@ namespace Broker.Batch
             }
             catch (Exception ex)
             {
-                Log.Error(ex.Message + " " + ex.StackTrace);
+                Utils.LogError(ex);
             }
         }
 
@@ -157,7 +158,7 @@ namespace Broker.Batch
             }
             catch (Exception ex)
             {
-                Log.Error(ex.Message + " " + ex.StackTrace);
+                Utils.LogError(ex);
             }
         }
 
@@ -170,7 +171,7 @@ namespace Broker.Batch
             }
             catch (Exception ex)
             {
-                Log.Error(ex.Message + " " + ex.StackTrace);
+                Utils.LogError(ex);
             }
         }
 
@@ -183,19 +184,26 @@ namespace Broker.Batch
             }
             catch (Exception ex)
             {
-                Log.Error(ex.Message + " " + ex.StackTrace);
+                Utils.LogError(ex);
             }
         }
 
         // functions
         public void Dispose()
         {
-            timerTicker?.Dispose();
-            timerCandle?.Dispose();
-            timerRemoveOldTicker?.Dispose();
-            timerRemoveOldMacd?.Dispose();
-            timerRemoveOldMomentum?.Dispose();
-            timerRemoveOldRsi?.Dispose();
+            try
+            {
+                timerTicker?.Dispose();
+                timerCandle?.Dispose();
+                timerRemoveOldTicker?.Dispose();
+                timerRemoveOldMacd?.Dispose();
+                timerRemoveOldMomentum?.Dispose();
+                timerRemoveOldRsi?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex);
+            }
         }
     }
 }
