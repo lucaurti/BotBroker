@@ -86,7 +86,6 @@ namespace Broker.Common.Strategies
             RSIAverage = new RSISignal(14, candles);
 
         }
-        
 
         // events
         private void Events_myTradeRequest(MyWebAPISettings settings, TradeAction tradeType, 
@@ -309,6 +308,7 @@ namespace Broker.Common.Strategies
             }
 
         }
+
         private void Events_onTickerUpdate(List<MyTicker> myTickers)
         {
             // check warmup status
@@ -416,12 +416,15 @@ namespace Broker.Common.Strategies
             strategies.Events_onCandleUpdate(myCandle);
         
         }
+
         private void Events_myWarmUpRequest()
         {
             Log.Information("-> Signaling new WARMUP");
             strategyStarted = DateTime.Now;
-            isInWarmUp = true; mustStartTicker = true;
+            isInWarmUp = true;
+            mustStartTicker = true;
         }
+
         private void Events_onTelegramMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             Log.Information("-> Signaling telegram bot");
@@ -443,6 +446,7 @@ namespace Broker.Common.Strategies
             strategies.TelegramBotClient.SendTextMessageAsync(chatId, "ChatID: " + chatId + "\nUserID: " + fromId + "\nGreat! You are registred!");
             if (strategies.TelegramBotUsernameTo == null) strategies.TelegramBotUsernameTo = fromId.ToString();
         }
+
         private void onEmitTicker(long chatId)
         {
             BrokerDBContext db = new BrokerDBContext();
@@ -458,6 +462,7 @@ namespace Broker.Common.Strategies
                 strategies.TelegramBotClient.SendTextMessageAsync(chatId, message);
             }
         }
+
         private void onEmitCandle(long chatId)
         {
             BrokerDBContext db = new BrokerDBContext();
@@ -473,7 +478,6 @@ namespace Broker.Common.Strategies
                 strategies.TelegramBotClient.SendTextMessageAsync(chatId, message);
             }
         }
-
 
         // timer
         private void TimerOrder_Elapsed(MyTradeCompleted tradeCompleted)
@@ -633,6 +637,5 @@ namespace Broker.Common.Strategies
             else
                 throw new Exception("Ticker unavailable.");
         }
-
     }
 }

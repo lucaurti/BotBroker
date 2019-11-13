@@ -1,7 +1,7 @@
 ﻿using Broker.Common.Utility;
 using System;
 
-namespace Broker.Common.Strategies.MACD
+namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
 {
 
     [Serializable]
@@ -12,13 +12,18 @@ namespace Broker.Common.Strategies.MACD
         private decimal previousActionPrice = 0;
         private ActionType previousAction = ActionType.None;
         private DateTime lastOpDate = DateTime.Now;
+        private MarketType marketState = MarketType.None;
+        private MarketType previousMarketState = MarketType.None;
 
 
         // properties
-        internal decimal StopLoss { get; set; } = 0;
+        internal decimal BuyAt { get; set; } = 0;
+        //internal decimal BuyAtUp { get; set; } = 0;
+        internal decimal SellAt { get; set; } = 0;
+        //internal decimal StopLoss { get; set; } = 0;
         internal decimal CurrentCandleClose { get; set; } = 0;
         internal decimal PreviousCandleClose { get; set; } = 0;
-        internal decimal? LimitShortPrice { get; set; } = null;
+        //internal decimal LimitShortPrice { get; set; } = 0;
         internal decimal LastHigh { get; set; } = 0;
         internal decimal LastLow { get; set; } = decimal.MaxValue;
 
@@ -68,11 +73,38 @@ namespace Broker.Common.Strategies.MACD
             }
         }
 
+        internal MarketType MarketState 
+        { 
+            get
+            {
+                return marketState;
+            } 
+            set
+            {
+                marketState = value;
+                if (value != MarketType.None)
+                    Misc.CacheManager("MarketState", Misc.CacheType.Save, value);
+            }
+        }
+
+        internal MarketType PreviousMarketState 
+        { 
+            get
+            {
+                return previousMarketState;
+            } 
+            set
+            {
+                previousMarketState = value;
+            }
+        }
+
         // enum
         internal enum ActionType
         {
             None,
             WarmUp,
+            Reset,
             Sell,
             Buy,
             StopLoss,
@@ -83,6 +115,14 @@ namespace Broker.Common.Strategies.MACD
             Pause
         }
 
+        internal enum MarketType
+        {
+            None,
+            Bullish,
+            Bearish
+        }
+
+
         // function
         internal static ActionType ToActionType(string action)
         {
@@ -91,6 +131,7 @@ namespace Broker.Common.Strategies.MACD
             switch (action.ToLower())
             {
                 case "warmup": return ActionType.WarmUp;
+                case "reset": return ActionType.Reset;
                 case "sell": return ActionType.Sell;
                 case "buy": return ActionType.Buy;
                 case "sospbuy": return ActionType.SospBuy;
@@ -99,6 +140,18 @@ namespace Broker.Common.Strategies.MACD
                 case "sosploss": return ActionType.SospLoss;
                 case "stopexit": return ActionType.StopExit;
                 default: return ActionType.None; //none
+            }
+        }
+
+        internal static MarketType ToMarketType(string action)
+        {
+            if (action == null) 
+                return MarketType.None;
+            switch (action.ToLower())
+            {
+                case "bullish": return MarketType.Bullish;
+                case "bearish": return MarketType.Bearish;
+                default: return MarketType.None; //none
             }
         }
 

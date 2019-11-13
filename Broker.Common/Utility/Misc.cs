@@ -170,6 +170,7 @@ namespace Broker.Common.Utility
 
             throw new Exception("Invalid input!");
         }
+
         public static dynamic CacheManager(this string key, CacheType operation, dynamic value = null) 
         {
             MySetup setup;
