@@ -11,7 +11,6 @@ namespace Broker.Common.Utility
 {
     public static class Misc
     {
-        
         // enum
         public enum CacheType
         {
@@ -21,9 +20,8 @@ namespace Broker.Common.Utility
 
         }
 
-
         // properties
-        public static string GetExchange 
+        public static string GetExchange
         {
             get
             {
@@ -31,7 +29,8 @@ namespace Broker.Common.Utility
                 return exchange.Replace("WebAPI", "").Replace(".", "");
             }
         }
-        public static string GetStrategy 
+
+        public static string GetStrategy
         {
             get
             {
@@ -39,6 +38,7 @@ namespace Broker.Common.Utility
                 return exchange.Replace("Strategies", "").Replace("Strategy", "").Replace(".", "");
             }
         }
+
         public static int GetTickerTime
         {
             get
@@ -46,6 +46,7 @@ namespace Broker.Common.Utility
                 return int.Parse(GetParameterValue("secondsTicker"));
             }
         }
+
         public static int GetCandleTime
         {
             get
@@ -53,6 +54,7 @@ namespace Broker.Common.Utility
                 return int.Parse(GetParameterValue("minutesCandle"));
             }
         }
+
         public static bool IsPaperTrade
         {
             get
@@ -60,6 +62,7 @@ namespace Broker.Common.Utility
                 return bool.Parse(GetParameterValue("isPaperTrade"));
             }
         }
+
         public static bool MustRecoverData
         {
             get
@@ -75,6 +78,7 @@ namespace Broker.Common.Utility
                 return (x == "") ? null : x;
             }
         }
+
         public static string GetTelegramPassword
         {
             get
@@ -82,7 +86,8 @@ namespace Broker.Common.Utility
                 var x = Misc.GetParameterValue("password", "telegram");
                 return (x == "") ? null : x;
             }
-        }     
+        }
+
         public static string GetTelegramUsernameTo
         {
             get
@@ -90,15 +95,16 @@ namespace Broker.Common.Utility
                 var x = Misc.GetParameterValue("usernameTo", "telegram");
                 return (x == "") ? null : x;
             }
-        }  
+        }
+
         public static TimeSpan RoundDateTimeCandle
         {
-            get 
+            get
             {
                 DateTime now = DateTime.Now;
                 DateTime x = now.RoundUpDateCandle();
                 long ticks = x.Ticks - DateTime.Now.Ticks;
-                if (ticks < 0) 
+                if (ticks < 0)
                     x = now.AddMinutes(1).RoundUpDateCandle();
                 ticks = x.Ticks - DateTime.Now.Ticks;
                 return new TimeSpan(ticks);
@@ -112,7 +118,6 @@ namespace Broker.Common.Utility
                 return bool.Parse(Misc.GetParameterValue("logStrategyOnCandleUpdate"));
             }
         }
-        
 
         // extension
         public static DateTime ToDateTime(this uint timestamp) => ((UInt64)timestamp).ToDateTime();
@@ -128,12 +133,14 @@ namespace Broker.Common.Utility
         }
         public static string ToShortDateStringEU(this DateTime dateTime) => dateTime.ToString("dd/MM/yyyy");
         public static string ToShortTimeStringEU(this DateTime dateTime) => dateTime.ToString("HH:mm:ss");
-        public static string ToStringRound(this decimal price, int precision) 
-        {            
-            return (precision == 0) ? 
+
+        public static string ToStringRound(this decimal price, int precision)
+        {
+            return (precision == 0) ?
                 Math.Truncate(Math.Round(price, precision)).ToString("F0") :
                 Math.Round(price, precision).ToString("F" + precision);
         }
+
         public static T DeepClone<T>(this T obj)
         {
             if (obj == null) return default(T);
@@ -143,11 +150,13 @@ namespace Broker.Common.Utility
             ms.Position = 0;
             return (T)formatter.Deserialize(ms);
         }
-        public static bool isNumeric(this string input) 
+
+        public static bool isNumeric(this string input)
         {
             float output;
             return float.TryParse(input, out output);
         }
+
         public static decimal ToDecimal(this string input)
         {
 
@@ -159,7 +168,7 @@ namespace Broker.Common.Utility
             var pointCulture = new CultureInfo("en") { NumberFormat = { NumberDecimalSeparator = "." } };
             input = input.Trim();
 
-            if (input.isNumeric() && !input.Contains(".") && !input.Contains(",")) 
+            if (input.isNumeric() && !input.Contains(".") && !input.Contains(","))
                 return Convert.ToDecimal(input);
 
             if (input.Contains(",") && input.Split(',').Length == 2)
@@ -171,68 +180,69 @@ namespace Broker.Common.Utility
             throw new Exception("Invalid input!");
         }
 
-        public static dynamic CacheManager(this string key, CacheType operation, dynamic value = null) 
+        public static dynamic CacheManager(this string key, CacheType operation, dynamic value = null)
         {
             MySetup setup;
-            BrokerDBContext db = new BrokerDBContext();
-
-            switch (operation) 
+            using (BrokerDBContext db = new BrokerDBContext())
             {
-                case CacheType.Delete:
-                    setup = db.MySetups.Where(s=>s.Key == key).First();
-                    db.MySetups.Remove(setup);
-                    return (db.SaveChanges() > 0);
-
-                case CacheType.Load:
-                    setup = db.MySetups.Where(s=>s.Key == key).FirstOrDefault();
-                    return (setup != null ? setup.Value: null);
-
-                case CacheType.Save:
-                    if (value != null) {
-                        setup = db.MySetups.Where(s=>s.Key == key).FirstOrDefault();
-                        if (setup == null) {
-                            setup = new MySetup();
-                            setup.Key = key;
-                            setup.Value = value.ToString();
-                            db.MySetups.Add(setup);
-                        }
-                        else
-                            setup.Value = value.ToString();
+                switch (operation)
+                {
+                    case CacheType.Delete:
+                        setup = db.MySetups.Where(s => s.Key == key).First();
+                        db.MySetups.Remove(setup);
                         return (db.SaveChanges() > 0);
-                    }
-                    break;
 
+                    case CacheType.Load:
+                        setup = db.MySetups.Where(s => s.Key == key).FirstOrDefault();
+                        return (setup != null ? setup.Value : null);
+
+                    case CacheType.Save:
+                        if (value != null)
+                        {
+                            setup = db.MySetups.Where(s => s.Key == key).FirstOrDefault();
+                            if (setup == null)
+                            {
+                                setup = new MySetup();
+                                setup.Key = key;
+                                setup.Value = value.ToString();
+                                db.MySetups.Add(setup);
+                            }
+                            else
+                                setup.Value = value.ToString();
+                            return (db.SaveChanges() > 0);
+                        }
+                        break;
+                }
             }
-
             return false;
         }
+
         public static DateTime RoundUpDateCandle(this DateTime dateTime)
         {
             int candleTime = GetCandleTime;
-            return new DateTime(dateTime.Year, dateTime.Month, 
+            return new DateTime(dateTime.Year, dateTime.Month,
                 dateTime.Day, dateTime.Hour, dateTime.Minute, 0)
-                .AddMinutes(dateTime.Minute % candleTime == 0 ? 
+                .AddMinutes(dateTime.Minute % candleTime == 0 ?
                 0 : candleTime - dateTime.Minute % candleTime);
         }
-        
-        
+
         // multicoin
-        public static MyWebAPISettings GenerateMyWebAPISettings(int? numInstance = null) 
+        public static MyWebAPISettings GenerateMyWebAPISettings(int? numInstance = null)
         {
             MyWebAPISettings settings;
-            if (!numInstance.HasValue) 
-                settings= new MyWebAPISettings
+            if (!numInstance.HasValue)
+                settings = new MyWebAPISettings
                 (
-                    Asset: Misc.GetParameterValue("asset", Misc.GetExchange), 
+                    Asset: Misc.GetParameterValue("asset", Misc.GetExchange),
                     Currency: Misc.GetParameterValue("currency", Misc.GetExchange),
                     Separator: Misc.GetParameterValue("separator", Misc.GetExchange),
                     PrecisionAsset: int.Parse(Misc.GetParameterValue("precisionAsset", Misc.GetExchange)),
                     PrecisionCurrency: int.Parse(Misc.GetParameterValue("precisionCurrency", Misc.GetExchange))
                 );
             else
-                settings= new MyWebAPISettings
+                settings = new MyWebAPISettings
                 (
-                    Asset: Misc.GetParameterValueList("asset", numInstance, Misc.GetExchange, "multicoin"), 
+                    Asset: Misc.GetParameterValueList("asset", numInstance, Misc.GetExchange, "multicoin"),
                     Currency: Misc.GetParameterValueList("currency", numInstance, Misc.GetExchange, "multicoin"),
                     Separator: Misc.GetParameterValue("separator", Misc.GetExchange),
                     PrecisionAsset: int.Parse(Misc.GetParameterValueList("precisionAsset", numInstance, Misc.GetExchange, "multicoin")),
@@ -240,43 +250,47 @@ namespace Broker.Common.Utility
                 );
             return settings.GenerateMyWebAPISettings();
         }
-        public static MyWebAPISettings GenerateMyWebAPISettings(this MyWebAPISettings Settings, BrokerDBContext db = null) 
+
+        public static MyWebAPISettings GenerateMyWebAPISettings(this MyWebAPISettings Settings, BrokerDBContext db = null)
         {
-            if (db == null) db = new BrokerDBContext();
-            MyWebAPISettings settings = 
+            if (db == null)
+                db = new BrokerDBContext();
+            MyWebAPISettings settings =
                 db.MyWebAPISettings
-                .Where(s => s.Asset == Settings.Asset && 
+                .Where(s => s.Asset == Settings.Asset &&
                     s.Currency == Settings.Currency)
                 .FirstOrDefault();
             if (settings == null)
             {
-                BrokerDBContext dbNew = new BrokerDBContext();
-                Settings.Id = 0;
-                dbNew.MyWebAPISettings.Add(Settings);
-                dbNew.SaveChanges();
+                using (BrokerDBContext dbNew = new BrokerDBContext())
+                {
+                    Settings.Id = 0;
+                    dbNew.MyWebAPISettings.Add(Settings);
+                    dbNew.SaveChanges();
+                }
                 return Settings.GenerateMyWebAPISettings(db);
             }
             return settings;
         }
+
         public static MyWebAPI ResolveWebAPI(this IList<MyWebAPI> WebAPIList, MyWebAPISettings Settings)
         {
             return WebAPIList.First(s => s.Settings.Id == Settings.Id);
         }
 
-
         // functions
         public static string GetParameterValue(string parameterName, string sectionName = "configurations")
         {
-            //IConfigurationManager myService = ServiceLocator.Current.GetInstance<IConfigurationManager>();
             IConfigurationManager myService = new ConfigurationManager(ConfigurationManager.GetConfiguration);
             return myService.GetParameterValue(parameterName, sectionName);
         }
+
         public static string GetParameterValueList(string parameterName, int? index, string sectionName = "configurations", string subSectionName = null)
         {
-            //IConfigurationManager myService = ServiceLocator.Current.GetInstance<IConfigurationManager>();
             IConfigurationManager myService = new ConfigurationManager(ConfigurationManager.GetConfiguration);
             return myService.GetParameterValueList(parameterName, sectionName, subSectionName, index).Last();
         }
+
         public static Type ToType(this string typeName, string prefix = "")
         {
             if (prefix != "") typeName = prefix + "." + typeName;
@@ -290,7 +304,7 @@ namespace Broker.Common.Utility
             }
             return null;
         }
-        
+
     }
 
 }

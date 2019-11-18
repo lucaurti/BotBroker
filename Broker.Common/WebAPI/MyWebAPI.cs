@@ -48,10 +48,10 @@ namespace Broker.Common.WebAPI
                 int _upd = 0; MyWebAPISettings app = (Settings ?? this.Settings);
                 if (webAPI.GetTicker(app, out tickers))
                 {
-                    Log.Debug("WebAbi tickers       : " + tickers.Count);                    
-                    if (saveAndEvent) 
+                    Log.Debug("WebAbi tickers       : " + tickers.Count);
+                    if (saveAndEvent)
                     {
-                        foreach (var _ticker in tickers) 
+                        foreach (var _ticker in tickers)
                         {
                             _ticker.Settings = app.GenerateMyWebAPISettings(db);
                             db.MyTickers.Add(_ticker);
@@ -67,6 +67,7 @@ namespace Broker.Common.WebAPI
             }
             return (tickers != null);
         }
+
         public bool GetCandle(out MyCandle myCandle)
         {
             myCandle = null;
@@ -288,6 +289,7 @@ namespace Broker.Common.WebAPI
                 throw ex;
             }
         }
+
         public bool GetOrderBook(out List<MyOrderBook> orderBooks)
         {
             try
@@ -300,7 +302,6 @@ namespace Broker.Common.WebAPI
                 throw ex;
             }
         }
-        
 
         // without parameters
         public bool GetTicker()
@@ -316,7 +317,7 @@ namespace Broker.Common.WebAPI
         }
 
         // events
-        private void WebSocket_OnTickerUpdate(MyTicker myTicker) 
+        private void WebSocket_OnTickerUpdate(MyTicker myTicker)
         {
             BrokerDBContext db = new BrokerDBContext();
             List<MyTicker> tickers = new List<MyTicker>();
@@ -329,8 +330,8 @@ namespace Broker.Common.WebAPI
                     if (myTicker.Timestamp == last.Timestamp)
                         return;
                     if (myTicker.Ask == last.Ask &&
-                        myTicker.Bid == last.Bid && 
-                        myTicker.LastTrade == last.LastTrade) 
+                        myTicker.Bid == last.Bid &&
+                        myTicker.LastTrade == last.LastTrade)
                         return;
                 }
 
@@ -356,9 +357,9 @@ namespace Broker.Common.WebAPI
         private static HttpClient CreateHttpClient(Uri baseUri, MyAuthentication authentication)
         {
             HttpClient httpClient;
-            
+
             // set proxy if needed
-            if (Extension.GetProxyHost != null && Extension.GetProxyPort.HasValue) 
+            if (Extension.GetProxyHost != null && Extension.GetProxyPort.HasValue)
             {
                 HttpClientHandler httpClientHandler = new HttpClientHandler()
                 {
@@ -377,14 +378,14 @@ namespace Broker.Common.WebAPI
                 string base64authorization = authentication.KeyID;
                 if (base64authorization.Length > 0) base64authorization += ":";
                 base64authorization += authentication.KeySecret;
-                if (Extension.MustBase64Enconding) 
+                if (Extension.MustBase64Enconding)
                 {
                     base64authorization = Convert.ToBase64String(Encoding.ASCII.GetBytes(base64authorization));
                     base64authorization = $"Basic {base64authorization}";
                 }
                 httpClient.DefaultRequestHeaders.TryAddWithoutValidation("authorization", base64authorization);
             }
-            
+
             // return
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Broker C#");
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("nonce", DateTime.Now.ToUnixTimeStamp());
@@ -401,13 +402,13 @@ namespace Broker.Common.WebAPI
         public static string ComposeURI(this string baseUri, HttpMethod method, string requestUrl, params string[] parameters)
         {
             StringBuilder builder = new StringBuilder(baseUri);
-            bool isPresentKeyPair = true; 
+            bool isPresentKeyPair = true;
 
-            builder.Append(requestUrl); 
+            builder.Append(requestUrl);
             if (method != HttpMethod.Post)
             {
                 if (parameters.Length > 0)
-                     builder.Append('?');
+                    builder.Append('?');
                 foreach (string x in parameters)
                 {
                     builder.Append(x + "&");
@@ -416,8 +417,8 @@ namespace Broker.Common.WebAPI
                 if (builder[builder.Length - 1] == '&')
                     builder.Remove(builder.Length - 1, 1);
             }
-            return isPresentKeyPair ? 
-                builder.ToString() : 
+            return isPresentKeyPair ?
+                builder.ToString() :
                 builder.Replace('?', '/').ToString();
         }
         public static T GetAsync<T>(this Uri baseUri, HttpMethod method, string requestUrl, MyAuthentication authentication, params string[] parametersUrl)
@@ -426,16 +427,16 @@ namespace Broker.Common.WebAPI
             string uri = httpClient.BaseAddress.ComposeURI(method, requestUrl, parametersUrl);
             using (var request = new HttpRequestMessage(method, uri))
             {
-                if (method == HttpMethod.Post) 
+                if (method == HttpMethod.Post)
                 {
                     var values = new Dictionary<string, string>();
                     foreach (string param in parametersUrl)
                         values.Add(
-                            param.Substring(0, param.IndexOf('=')), 
+                            param.Substring(0, param.IndexOf('=')),
                             param.Substring(param.IndexOf('=') + 1)
                         );
 
-                    if (IsJsonRequest) 
+                    if (IsJsonRequest)
                     {
                         var json = JsonConvert.SerializeObject(values);
                         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -451,7 +452,7 @@ namespace Broker.Common.WebAPI
                     httpClient.Dispose();
                     return JsonConvert.DeserializeObject<T>(data);
                 }
-                else 
+                else
                 {
                     httpClient.Dispose();
                     string message = (response.Content != null) ? " - " + response.Content.ReadAsStringAsync().Result : "";
@@ -466,7 +467,7 @@ namespace Broker.Common.WebAPI
         public static T GetAsync<T>(this Uri baseUri, HttpMethod method, string requestUrl, params string[] parametersUrl)
         {
             return GetAsync<T>(baseUri, method, requestUrl, false, parametersUrl);
-        }       
+        }
         public static string ToPrecision(this decimal values, MyWebAPISettings settings, TypeCoin coin)
         {
             if (coin == TypeCoin.Currency)
@@ -474,7 +475,7 @@ namespace Broker.Common.WebAPI
             else
                 return values.ToStringRound(settings.PrecisionAsset);
         }
-                
+
 
         // properties
         public static MyAuthentication GetAuthentication
@@ -555,7 +556,7 @@ namespace Broker.Common.WebAPI
                 return (x == "") ? (int?)null : int.Parse(x);
             }
         }
-        
+
     }
 
 }

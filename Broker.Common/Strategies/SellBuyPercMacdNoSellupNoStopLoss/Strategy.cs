@@ -1,13 +1,13 @@
-﻿using Broker.Common.Events;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Broker.Common.Events;
 using Broker.Common.Indicators;
 using Broker.Common.Utility;
 using Broker.Common.WebAPI;
 using Broker.Common.WebAPI.Models;
 using Serilog.Events;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Telegram.Bot;
 using static Broker.Common.Strategies.Enumerator;
 using static Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss.Values;
@@ -169,8 +169,11 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 LogStrategy.AppendLog("-> RESET trade", LogEventLevel.Information, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("CandleClose: " + myCandle.Close.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("PreviousActionPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
-                BrokerDBContext db = new BrokerDBContext();
-                decimal averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(50).Average(s => s.Close);
+                decimal averageCloseCandle = 0;
+                using (BrokerDBContext db = new BrokerDBContext())
+                {
+                    averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(50).ToList().Average(s => s.Close);
+                }
                 this.Current.PreviousActionPrice = averageCloseCandle.Round(myCandle.Settings.PrecisionCurrency);
                 this.Current.LastOpDate = myCandle.Date;
                 this.Current.PreviousAction = ActionType.Sell;
@@ -370,7 +373,6 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 telegramBot.SendTextMessageAsync(chatId, "Password mismatch!");
             else
             {
-
                 // abort by telegram
                 LogStrategy.AppendLog("-> Telegram advice change status: " + status.ToString());
 
@@ -392,7 +394,6 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 telegramBot.SendTextMessageAsync(chatId, "Password mismatch!");
             else
             {
-
                 // abort by telegram
                 LogStrategy.AppendLog("-> Telegram advice ABORT");
 
@@ -411,7 +412,6 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 telegramBot.SendTextMessageAsync(chatId, "Password mismatch!");
             else
             {
-
                 // reset by telegram
                 MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
                 LogStrategy.AppendLog("-> Telegram advice RESET");
@@ -517,84 +517,63 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
             telegramBot.SendTextMessageAsync(chatId, message.ToString());
         }
 
-        private void onTradeCandle(CandleType type, decimal price, decimal? newPrice = null)
-        {
-            if (this.telegramBot == null || this.telegramUsernameTo == null) return;
-            MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
-            string message = "Limit changed. " +
-                "\nDirection: " + (type == CandleType.High ? "High" : "Low") +
-                "\nPrice: " + price.ToPrecision(settings, TypeCoin.Currency);
-            if (newPrice.HasValue && newPrice.Value > 0)
-                message += "\nNew stopLoss: " + newPrice.Value.ToPrecision(settings, TypeCoin.Currency);
-            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
-        }
-
         private void onTradeStart(decimal low, decimal high, decimal threshold)
         {
             if (this.telegramBot == null || this.telegramUsernameTo == null) return;
             MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
-            string message = "Trade started. " +
-                "\nLimit low: " + low.ToPrecision(settings, TypeCoin.Currency) +
-                "\nLimit high: " + high.ToPrecision(settings, TypeCoin.Currency) +
-                "\nNew limit: " + threshold.ToPrecision(settings, TypeCoin.Currency);
-            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
+            StringBuilder message = new StringBuilder();
+            message.AppendLine("Trade started. ");
+            message.AppendLine("Limit low: " + low.ToPrecision(settings, TypeCoin.Currency));
+            message.AppendLine("Limit high: " + high.ToPrecision(settings, TypeCoin.Currency));
+            message.AppendLine("New limit: " + threshold.ToPrecision(settings, TypeCoin.Currency));
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
         }
 
         private void onTradeReset(DateTime lastOpDate, DateTime date)
         {
             if (this.telegramBot == null || this.telegramUsernameTo == null) return;
-            string message = "Trade reset. " +
-                "\nFrom date: " + lastOpDate.ToShortDateTimeString() +
-                "\nTo date: " + date.ToShortDateTimeString();
-            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
+            StringBuilder message = new StringBuilder();
+            message.AppendLine("Trade reset.");
+            message.AppendLine("From date: " + lastOpDate.ToShortDateTimeString());
+            message.AppendLine("To date: " + date.ToShortDateTimeString());
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
         }
 
         private void onTradeCancelled(TradeStatus status, MyTradeCancelled tradeCancelled)
         {
             if (this.telegramBot == null || this.telegramUsernameTo == null) return;
-            string message = "Trade " + status.ToString().ToLower() + "." +
-                "\nID: " + tradeCancelled.Id.ToString().Substring(0, 6);
+            StringBuilder message = new StringBuilder();
+            message.AppendLine("Trade " + status.ToString().ToLower() + ".");
+            message.AppendLine("ID: " + tradeCancelled.Id.ToString().Substring(0, 6));
             if (tradeCancelled.IdReference != null)
-                message += "\nIdRef: " + tradeCancelled.IdReference.ToString().Substring(0, 6);
+                message.AppendLine("IdRef: " + tradeCancelled.IdReference.ToString().Substring(0, 6));
             if (tradeCancelled.Reason != null)
-                message += "\nReason: " + tradeCancelled.Reason;
-            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
+                message.AppendLine("Reason: " + tradeCancelled.Reason);
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
         }
 
         private void onTradeCompleted(MyTradeCompleted tradeCompleted, decimal newPrice, decimal? newUpDown = null)
         {
             if (this.telegramBot == null || this.telegramUsernameTo == null) return;
-            var message = "Trade completed. " +
-                "\nID: " + tradeCompleted.OrderId +
-                "\nAction: " + tradeCompleted.Action +
-                "\nPrice: " + tradeCompleted.Price.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
-                "\nAmount: " + tradeCompleted.Amount.ToPrecision(tradeCompleted.Settings, TypeCoin.Asset) +
-                "\nCost: " + tradeCompleted.Cost.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
-                "\nBalance: " + tradeCompleted.Balance.ToStringRound(2) +
-                "\nEffective price: " + tradeCompleted.EffectivePrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
-                "\nNew price: " + newPrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-            if (newUpDown.HasValue)
-            { 
-                if (tradeCompleted.Action == TradeAction.Long)
-                    message += "\nNew stopLoss: " + newUpDown.Value.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-                else if (tradeCompleted.Action == TradeAction.Short)
-                    message += "\nNew sellUp: " + newUpDown.Value.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-            }
-            LogStrategy.AppendLog(message, LogEventLevel.Fatal, LogStrategy.Destination.File);
-            LogStrategy.AppendLog(message, LogEventLevel.Verbose, LogStrategy.Destination.All);
-            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
-        }
-
-        private void onTradeStopCompleted(decimal price, decimal newStopless)
-        {
-            if (this.telegramBot == null || this.telegramUsernameTo == null) return;
-            MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
-            string message = "StopLoss exited. " +
-                "\nPrice: " + price.ToPrecision(settings, TypeCoin.Currency) +
-                "\nNew stopLoss: " + newStopless.ToPrecision(settings, TypeCoin.Currency) +
-                "\nLimit low: " + this.Current.LastLow.ToPrecision(settings, TypeCoin.Currency) +
-                "\nLimit high: " + this.Current.LastHigh.ToPrecision(settings, TypeCoin.Currency);
-            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
+            StringBuilder message = new StringBuilder();
+            message.AppendLine("Trade completed. ");
+            message.AppendLine("ID: " + tradeCompleted.OrderId);
+            message.AppendLine("Action: " + tradeCompleted.Action);
+            message.AppendLine("Price: " + tradeCompleted.Price.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency));
+            message.AppendLine("Amount: " + tradeCompleted.Amount.ToPrecision(tradeCompleted.Settings, TypeCoin.Asset));
+            message.AppendLine("Cost: " + tradeCompleted.Cost.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency));
+            message.AppendLine("Balance: " + tradeCompleted.Balance.ToStringRound(2));
+            message.AppendLine("Effective price: " + tradeCompleted.EffectivePrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency));
+            message.AppendLine("New price: " + newPrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency));
+            //if (newUpDown.HasValue)
+            //{
+            //    if (tradeCompleted.Action == TradeAction.Long)
+            //        message += "\nNew stopLoss: " + newUpDown.Value.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+            //    else if (tradeCompleted.Action == TradeAction.Short)
+            //        message += "\nNew sellUp: " + newUpDown.Value.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+            //}
+            LogStrategy.AppendLog(message.ToString(), LogEventLevel.Verbose, LogStrategy.Destination.All);
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
         }
 
         private void onCandleUpdateCompleted(string message)
@@ -652,13 +631,13 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
             this.onTradeCancelled(status, tradeAborted);
 
             // stoploss exception
-            if (this.Current.PreviousAction == ActionType.SospLoss)
-            {
-                LogStrategy.AppendLog("Method: Re-initiate stopless strategy.");
-                events.MyTradeRequest(tradeAborted.Settings, TradeAction.Short,
-                    int.Parse(Misc.GetParameterValue("stopLossPercentage", NameStrategy)));
-                return;
-            }
+            //if (this.Current.PreviousAction == ActionType.SospLoss)
+            //{
+            //    LogStrategy.AppendLog("Method: Re-initiate stopless strategy.");
+            //    events.MyTradeRequest(tradeAborted.Settings, TradeAction.Short,
+            //        int.Parse(Misc.GetParameterValue("stopLossPercentage", NameStrategy)));
+            //    return;
+            //}
 
             // restore old values
             this.Current = this.Saved.DeepClone();
@@ -673,33 +652,58 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
 
             // macd check cross line
             decimal macdValue, signalValue, hist;
-            BrokerDBContext db = new BrokerDBContext();
-            MyMACD oldMacd = db.MyMACDs.OrderByDescending(s => s.Id).Skip(1).FirstOrDefault();
-            MyStrategy.MACDAverage.Value(out macdValue, out signalValue, out hist);
-            if (oldMacd != null && MyStrategy.MACDAverage.isPrimed())
+            using (BrokerDBContext db = new BrokerDBContext())
             {
-                Line macdLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.MACD, y2 = macdValue };
-                Line signalLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.SignalValue, y2 = signalValue };
-                Point c = LineIntersection.FindIntersection(macdLine, signalLine);
-                if (!c.Equals(default(Point)))
+                MyMACD oldMacd = db.MyMACDs.OrderByDescending(s => s.Id).Skip(1).FirstOrDefault();
+                MyStrategy.MACDAverage.Value(out macdValue, out signalValue, out hist);
+                if (oldMacd != null && MyStrategy.MACDAverage.isPrimed())
                 {
-                    LogStrategy.AppendLog("-> Signaling crossover line", LogEventLevel.Information, LogStrategy.Destination.All);
-                    LogStrategy.AppendLog("Point Y: " + c.y.ToStringRound(2), LogEventLevel.Debug, LogStrategy.Destination.All);
-                    LogStrategy.AppendLog("MACD Y: " + macdLine.y2.ToStringRound(2), LogEventLevel.Debug, LogStrategy.Destination.All);
-                    if (macdLine.y2 > c.y)
+                    Line macdLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.MACD, y2 = macdValue };
+                    Line signalLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.SignalValue, y2 = signalValue };
+                    Point c = LineIntersection.FindIntersection(macdLine, signalLine);
+                    if (!c.Equals(default(Point)))
                     {
-                        LogStrategy.AppendLog("Signaling crossover line - MarketState: Bullish - Direction: Up", LogEventLevel.Information, LogStrategy.Destination.All);
-                        this.Current.MarketState = MarketType.Bullish;
-                    }
-                    else
-                    {
-                        LogStrategy.AppendLog("Signaling crossover line - MarketState: Bearish - Direction: Down", LogEventLevel.Information, LogStrategy.Destination.All);
-                        this.Current.MarketState = MarketType.Bearish;
+                        LogStrategy.AppendLog("-> Signaling crossover line", LogEventLevel.Information, LogStrategy.Destination.All);
+                        LogStrategy.AppendLog("Point Y: " + c.y.ToStringRound(2), LogEventLevel.Debug, LogStrategy.Destination.All);
+                        LogStrategy.AppendLog("MACD Y: " + macdLine.y2.ToStringRound(2), LogEventLevel.Debug, LogStrategy.Destination.All);
+                        if (macdLine.y2 > c.y)
+                        {
+                            LogStrategy.AppendLog("Signaling crossover line - MarketState: Bullish - Direction: Up", LogEventLevel.Information, LogStrategy.Destination.All);
+                            this.Current.MarketState = MarketType.Bullish;
+                        }
+                        else
+                        {
+                            LogStrategy.AppendLog("Signaling crossover line - MarketState: Bearish - Direction: Down", LogEventLevel.Information, LogStrategy.Destination.All);
+                            this.Current.MarketState = MarketType.Bearish;
+                        }
                     }
                 }
             }
-
         }
+
+        //private void onTradeStopCompleted(decimal price, decimal newStopless)
+        //{
+        //    if (this.telegramBot == null || this.telegramUsernameTo == null) return;
+        //    MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
+        //    string message = "StopLoss exited. " +
+        //        "\nPrice: " + price.ToPrecision(settings, TypeCoin.Currency) +
+        //        "\nNew stopLoss: " + newStopless.ToPrecision(settings, TypeCoin.Currency) +
+        //        "\nLimit low: " + this.Current.LastLow.ToPrecision(settings, TypeCoin.Currency) +
+        //        "\nLimit high: " + this.Current.LastHigh.ToPrecision(settings, TypeCoin.Currency);
+        //    telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
+        //}
+
+        //private void onTradeCandle(CandleType type, decimal price, decimal? newPrice = null)
+        //{
+        //    if (this.telegramBot == null || this.telegramUsernameTo == null) return;
+        //    MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
+        //    string message = "Limit changed. " +
+        //        "\nDirection: " + (type == CandleType.High ? "High" : "Low") +
+        //        "\nPrice: " + price.ToPrecision(settings, TypeCoin.Currency);
+        //    if (newPrice.HasValue && newPrice.Value > 0)
+        //        message += "\nNew stopLoss: " + newPrice.Value.ToPrecision(settings, TypeCoin.Currency);
+        //    telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
+        //}
 
         //private decimal ComputeStopless()
         //{

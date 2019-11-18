@@ -75,96 +75,55 @@ namespace Broker.Common.Strategies
             }
 
             // build indicators
-            BrokerDBContext db = new BrokerDBContext();
-            List<MyCandle> candles = db.MyCandles
+            using (BrokerDBContext db = new BrokerDBContext())
+            {
+                List<MyCandle> candles = db.MyCandles
                 .OrderByDescending(s => s.Date)
                 .Take(50).OrderBy(s => s.Date).ToList();
-            Log.Information("-> INIT average indicators");
-            Log.Information("Found candle        : " + candles.Count);
-            MACDAverage = new MACDSignal(12, 26, 9, candles);
-            MomentumAverage = new MomentumSignal(10, candles);
-            RSIAverage = new RSISignal(14, candles);
-
+                Log.Information("-> INIT average indicators");
+                Log.Information("Found candle        : " + candles.Count);
+                MACDAverage = new MACDSignal(12, 26, 9, candles);
+                MomentumAverage = new MomentumSignal(10, candles);
+                RSIAverage = new RSISignal(14, candles);
+            }
         }
 
         // events
-        private void Events_myTradeRequest(MyWebAPISettings settings, TradeAction tradeType, 
+        private void Events_myTradeRequest(MyWebAPISettings settings, TradeAction tradeType,
             int? percentage = null, decimal? price = null, decimal? priceLimit = null)
         {
             // variables
             MyTradeCompleted tradeCompleted = new MyTradeCompleted();
-            List<MyBalance> balances; MyBalance currency, asset;
-            BrokerDBContext db = new BrokerDBContext();
-            decimal volume = 0; string orderID;
-
-            // check timer
-            if (timerOrder != null)
+            List<MyBalance> balances;
+            MyBalance currency, asset;
+            using (BrokerDBContext db = new BrokerDBContext())
             {
-                string message = "Timer active, one operation is still in progress.";
-                MyTradeCancelled errored = new MyTradeCancelled
+                decimal volume = 0; string orderID;
+
+                // check timer
+                if (timerOrder != null)
                 {
-                    IdReference = tradeCompleted.Id,
-                    Reason = message,
-                    Settings = settings
-                };
-                Log.Error(errored.Reason);
-                events.OnTradeErrored(errored);
-                return;
-            }
+                    string message = "Timer active, one operation is still in progress.";
+                    MyTradeCancelled errored = new MyTradeCancelled
+                    {
+                        IdReference = tradeCompleted.Id,
+                        Reason = message,
+                        Settings = settings
+                    };
+                    Log.Error(errored.Reason);
+                    events.OnTradeErrored(errored);
+                    return;
+                }
 
-            // get balance
-            try
-            {
-                if (!webAPI.ResolveWebAPI(settings).GetBalance(out balances))
-                    throw new Exception("Balance unavailable.");
-                currency = balances.Where(s => s.Asset == settings.Currency).FirstOrDefault();
-                asset = balances.Where(s => s.Asset == settings.Asset).FirstOrDefault();
-                if (currency == null) currency = new MyBalance() { Asset =settings.Currency };
-                if (asset == null) asset = new MyBalance() { Asset = settings.Asset };
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex.Message + Environment.NewLine + ex.ToString());
-                MyTradeCancelled errored = new MyTradeCancelled
-                {
-                    IdReference = tradeCompleted.Id,
-                    Reason = ex.Message,
-                    Settings = settings
-                };
-                events.OnTradeErrored(errored);
-                return;
-            }
-
-            // find price if necessary
-            if (!price.HasValue)
-            {
+                // get balance
                 try
                 {
-                    List<MyTicker> tickers;
-                    if (webAPI.ResolveWebAPI(settings).GetTicker(out tickers)) 
-                    {
-                        price = (tradeType == TradeAction.Long) ? tickers.Last().Bid : tickers.Last().Ask;
-
-                        // check spread
-                        decimal spread = Math.Abs(tickers.Last().Ask - tickers.Last().Bid);
-                        decimal maxSpread = Extension.GetMaxSpread;
-                        if (spread > maxSpread)
-                        {
-                            MyTradeCancelled aborted = new MyTradeCancelled
-                            {
-                                IdReference = tradeCompleted.Id,
-                                Reason = "Current spread (" + spread.ToPrecision(settings, TypeCoin.Currency) + 
-                                    ") is over the limit (" + maxSpread.ToPrecision(settings, TypeCoin.Currency) + ")",
-                                Settings = settings
-                            };
-                            Log.Debug(aborted.Reason);
-                            events.OnTradeAborted(aborted);
-                            return;
-                        }
-                    }
-                    else
-                        price = GetLastPriceTicker(tradeCompleted.Action);
-
+                    if (!webAPI.ResolveWebAPI(settings).GetBalance(out balances))
+                        throw new Exception("Balance unavailable.");
+                    currency = balances.Where(s => s.Asset == settings.Currency).FirstOrDefault();
+                    asset = balances.Where(s => s.Asset == settings.Asset).FirstOrDefault();
+                    if (currency == null) currency = new MyBalance() { Asset = settings.Currency };
+                    if (asset == null) asset = new MyBalance() { Asset = settings.Asset };
                 }
                 catch (Exception ex)
                 {
@@ -178,124 +137,169 @@ namespace Broker.Common.Strategies
                     events.OnTradeErrored(errored);
                     return;
                 }
-            }
 
-
-            // buy
-            if (tradeType == TradeAction.Long)
-            {
-                // check funds
-                if (currency.Amount <= 0)
+                // find price if necessary
+                if (!price.HasValue)
                 {
-                    MyTradeCancelled aborted = new MyTradeCancelled
+                    try
                     {
-                        IdReference = tradeCompleted.Id,
-                        Reason = "Found insufficient.",
-                        Settings = settings
-                    };
-                    Log.Debug(aborted.Reason);
-                    events.OnTradeAborted(aborted);
-                    return;
+                        List<MyTicker> tickers;
+                        if (webAPI.ResolveWebAPI(settings).GetTicker(out tickers))
+                        {
+                            price = (tradeType == TradeAction.Long) ? tickers.Last().Bid : tickers.Last().Ask;
+
+                            // check spread
+                            decimal spread = Math.Abs(tickers.Last().Ask - tickers.Last().Bid);
+                            decimal maxSpread = Extension.GetMaxSpread;
+                            if (spread > maxSpread)
+                            {
+                                MyTradeCancelled aborted = new MyTradeCancelled
+                                {
+                                    IdReference = tradeCompleted.Id,
+                                    Reason = "Current spread (" + spread.ToPrecision(settings, TypeCoin.Currency) +
+                                        ") is over the limit (" + maxSpread.ToPrecision(settings, TypeCoin.Currency) + ")",
+                                    Settings = settings
+                                };
+                                Log.Debug(aborted.Reason);
+                                events.OnTradeAborted(aborted);
+                                return;
+                            }
+                        }
+                        else
+                            price = GetLastPriceTicker(tradeCompleted.Action);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+                        MyTradeCancelled errored = new MyTradeCancelled
+                        {
+                            IdReference = tradeCompleted.Id,
+                            Reason = ex.Message,
+                            Settings = settings
+                        };
+                        events.OnTradeErrored(errored);
+                        return;
+                    }
                 }
 
-                // check exposed
-                price -= Extension.GetSlipPage;
-                if (!Misc.IsPaperTrade) 
+
+                // buy
+                if (tradeType == TradeAction.Long)
                 {
-                    decimal exposed = (asset.Amount * price.Value) + currency.Amount;
-                    exposed = 100 - ((currency.Amount / exposed) * 100);
-                    if (exposed > exposedPercentage)
+                    // check funds
+                    if (currency.Amount <= 0)
                     {
                         MyTradeCancelled aborted = new MyTradeCancelled
                         {
                             IdReference = tradeCompleted.Id,
-                            Reason = "Too exposed, asset: " + asset.Amount.ToPrecision(settings, TypeCoin.Asset) +
-                            ", currency: " + currency.Amount.ToPrecision(settings, TypeCoin.Currency) +
-                            ", exposed: " + exposed.ToStringRound(2) + "%",
+                            Reason = "Found insufficient.",
                             Settings = settings
                         };
-                        Log.Information(aborted.Reason);
+                        Log.Debug(aborted.Reason);
                         events.OnTradeAborted(aborted);
                         return;
                     }
 
-                    // calculate volume
-                    volume = (percentage.HasValue ? 
-                        (
-                            (currency.Amount / price.Value) / 100) * percentage.Value : 
-                            (currency.Amount / price.Value)
-                        );
-                }
-                else
-                    volume = (percentage.HasValue ? 
-                        (
-                            (1000 / price.Value) / 100) * percentage.Value : 
-                            (1000 / price.Value)
-                        );
-
-            }
-
-            // sell
-            else if (tradeType == TradeAction.Short)
-            {
-
-                // calculate volume
-                price += Extension.GetSlipPage;
-                if (!Misc.IsPaperTrade) 
-                    volume = (percentage.HasValue ? 
-                        (asset.Amount / 100) * percentage.Value : asset.Amount);
-                else
-                    volume = (percentage.HasValue ? 
-                        ((decimal)0.1 / 100) * percentage.Value : (decimal)0.1);
-
-            }
-
-            // set event handler
-            tradeCompleted.Price = price.Value;
-            tradeCompleted.Action = tradeType;
-            tradeCompleted.Percentage = percentage;
-            tradeCompleted.LimitPrice = priceLimit;
-            tradeCompleted.Settings = settings;
-
-            // check limit price
-            if (priceLimit.HasValue)
-                if ((tradeType == TradeAction.Short && price < priceLimit) ||
-                        (tradeType == TradeAction.Long && price > priceLimit))
-                {
-                    MyTradeCancelled cancelled = new MyTradeCancelled
+                    // check exposed
+                    price -= Extension.GetSlipPage;
+                    if (!Misc.IsPaperTrade)
                     {
-                        IdReference = tradeCompleted.Id,
-                        Reason = "Price limit reached up: " + priceLimit.Value.ToPrecision(settings, TypeCoin.Currency),
-                        Settings = settings
-                    };
-                    Log.Information(cancelled.Reason);
-                    events.OnTradeCancelled(cancelled);
-                    return;
+                        decimal exposed = (asset.Amount * price.Value) + currency.Amount;
+                        exposed = 100 - ((currency.Amount / exposed) * 100);
+                        if (exposed > exposedPercentage)
+                        {
+                            MyTradeCancelled aborted = new MyTradeCancelled
+                            {
+                                IdReference = tradeCompleted.Id,
+                                Reason = "Too exposed, asset: " + asset.Amount.ToPrecision(settings, TypeCoin.Asset) +
+                                ", currency: " + currency.Amount.ToPrecision(settings, TypeCoin.Currency) +
+                                ", exposed: " + exposed.ToStringRound(2) + "%",
+                                Settings = settings
+                            };
+                            Log.Information(aborted.Reason);
+                            events.OnTradeAborted(aborted);
+                            return;
+                        }
+
+                        // calculate volume
+                        volume = (percentage.HasValue ?
+                            (
+                                (currency.Amount / price.Value) / 100) * percentage.Value :
+                                (currency.Amount / price.Value)
+                            );
+                    }
+                    else
+                        volume = (percentage.HasValue ?
+                            (
+                                (1000 / price.Value) / 100) * percentage.Value :
+                                (1000 / price.Value)
+                            );
+
                 }
 
-            // make order
-            try {
-                if (webAPI.ResolveWebAPI(settings).PostNewOrder(tradeType, volume, price.Value, out orderID))
+                // sell
+                else if (tradeType == TradeAction.Short)
                 {
-                    int retryTime = Extension.GetRetryTime;
-                    tradeCompleted.OrderId = orderID;
-                    Log.Information("-> Order in progress");
-                    Log.Information("Order ID            : " + tradeCompleted.OrderId);
-                    Log.Information("Trade               : " + tradeCompleted.Action.ToString());
-                    Log.Information("Volume              : " + tradeCompleted.Amount.ToPrecision(settings, TypeCoin.Asset));
-                    Log.Information("Trade               : " + tradeCompleted.Price.ToPrecision(settings, TypeCoin.Currency));
-                    isTradeInError = false;
-                    timerOrder = new Timer(
-                        (e) => TimerOrder_Elapsed(tradeCompleted),
-                        null,
-                        new TimeSpan(0, 0, retryTime),
-                        TimeSpan.FromSeconds(retryTime));
+
+                    // calculate volume
+                    price += Extension.GetSlipPage;
+                    if (!Misc.IsPaperTrade)
+                        volume = (percentage.HasValue ?
+                            (asset.Amount / 100) * percentage.Value : asset.Amount);
+                    else
+                        volume = (percentage.HasValue ?
+                            ((decimal)0.1 / 100) * percentage.Value : (decimal)0.1);
+
                 }
-                else
-                    throw new Exception("Order wasn't initiated");
-            }
-            catch (Exception ex)
-            {
+
+                // set event handler
+                tradeCompleted.Price = price.Value;
+                tradeCompleted.Action = tradeType;
+                tradeCompleted.Percentage = percentage;
+                tradeCompleted.LimitPrice = priceLimit;
+                tradeCompleted.Settings = settings;
+
+                // check limit price
+                if (priceLimit.HasValue)
+                    if ((tradeType == TradeAction.Short && price < priceLimit) ||
+                            (tradeType == TradeAction.Long && price > priceLimit))
+                    {
+                        MyTradeCancelled cancelled = new MyTradeCancelled
+                        {
+                            IdReference = tradeCompleted.Id,
+                            Reason = "Price limit reached up: " + priceLimit.Value.ToPrecision(settings, TypeCoin.Currency),
+                            Settings = settings
+                        };
+                        Log.Information(cancelled.Reason);
+                        events.OnTradeCancelled(cancelled);
+                        return;
+                    }
+
+                // make order
+                try
+                {
+                    if (webAPI.ResolveWebAPI(settings).PostNewOrder(tradeType, volume, price.Value, out orderID))
+                    {
+                        int retryTime = Extension.GetRetryTime;
+                        tradeCompleted.OrderId = orderID;
+                        Log.Information("-> Order in progress");
+                        Log.Information("Order ID            : " + tradeCompleted.OrderId);
+                        Log.Information("Trade               : " + tradeCompleted.Action.ToString());
+                        Log.Information("Volume              : " + tradeCompleted.Amount.ToPrecision(settings, TypeCoin.Asset));
+                        Log.Information("Trade               : " + tradeCompleted.Price.ToPrecision(settings, TypeCoin.Currency));
+                        isTradeInError = false;
+                        timerOrder = new Timer(
+                            (e) => TimerOrder_Elapsed(tradeCompleted),
+                            null,
+                            new TimeSpan(0, 0, retryTime),
+                            TimeSpan.FromSeconds(retryTime));
+                    }
+                    else
+                        throw new Exception("Order wasn't initiated");
+                }
+                catch (Exception ex)
+                {
                     MyTradeCancelled errored = new MyTradeCancelled
                     {
                         IdReference = tradeCompleted.Id,
@@ -305,8 +309,8 @@ namespace Broker.Common.Strategies
                     Log.Error(errored.Reason);
                     events.OnTradeErrored(errored);
                     return;
+                }
             }
-
         }
 
         private void Events_onTickerUpdate(List<MyTicker> myTickers)
@@ -314,107 +318,109 @@ namespace Broker.Common.Strategies
             // check warmup status
             if (mustStartTicker)
             {
-                BrokerDBContext db = new BrokerDBContext();
-                int minutesSub = requiredHistory * Misc.GetCandleTime;
-                long strategyStartedTime = strategyStarted.AddMinutes(minutesSub * -1).ToEpochTime();
-                var tickers = db.MyTickers
-                    .Where(s => s.Timestamp >= strategyStartedTime)
-                    .ToList();
-                myTickers = myTickers.Union(tickers).ToList();
-                Log.Information("-> Signaling WarmUp tickers");
-                Log.Information("WarmUp tickers       : " + tickers.Count());
-                mustStartTicker = false;
+                using (BrokerDBContext db = new BrokerDBContext())
+                {
+                    int minutesSub = requiredHistory * Misc.GetCandleTime;
+                    long strategyStartedTime = strategyStarted.AddMinutes(minutesSub * -1).ToEpochTime();
+                    var tickers = db.MyTickers
+                        .Where(s => s.Timestamp >= strategyStartedTime)
+                        .ToList();
+                    myTickers = myTickers.Union(tickers).ToList();
+                    Log.Information("-> Signaling WarmUp tickers");
+                    Log.Information("WarmUp tickers       : " + tickers.Count());
+                    mustStartTicker = false;
+                }
             }
 
             // execute interface event
             Log.Debug("Tickers found        : " + myTickers.Count());
             strategies.Events_onTickerUpdate(myTickers);
         }
-        
+
         private void Events_onCandleUpdate(MyCandle myCandle)
         {
             // variables
             List<MyBalance> balances = null;
-            BrokerDBContext db = new BrokerDBContext();
-
-            // check warmup status
-            if (isInWarmUp)
+            using (BrokerDBContext db = new BrokerDBContext())
             {
-                int minutesSub = requiredHistory * Misc.GetCandleTime;
-                int numCandleIn = db.MyCandles
-                    .Where(s => s.Date >= strategyStarted
-                        .AddMinutes(minutesSub * -1))
-                    .Take(requiredHistory)
-                    .Count();
-                Log.Information("-> Signaling WarmUp candles");
-                Log.Information("WarmUp candles          : " + numCandleIn);
-                Log.Information("WarmUp required candles : " + requiredHistory);
-
-                if (numCandleIn == requiredHistory)
+                // check warmup status
+                if (isInWarmUp)
                 {
-                    isInWarmUp = false;
-                    events.OnWarmUpEnded();
-                }
-            }
+                    int minutesSub = requiredHistory * Misc.GetCandleTime;
+                    int numCandleIn = db.MyCandles
+                        .Where(s => s.Date >= strategyStarted
+                            .AddMinutes(minutesSub * -1))
+                        .Take(requiredHistory)
+                        .Count();
+                    Log.Information("-> Signaling WarmUp candles");
+                    Log.Information("WarmUp candles          : " + numCandleIn);
+                    Log.Information("WarmUp required candles : " + requiredHistory);
 
-            // save balance
-            try 
-            {
-                if (webAPI.ResolveWebAPI(myCandle.Settings).GetBalance(out balances)) 
-                {
-                    foreach (var x in balances)
+                    if (numCandleIn == requiredHistory)
                     {
-                        if ((x.Amount + x.Reserved) == 0) continue;
-                        x.Candle = db.MyCandles.First(s => s.Id == myCandle.Id);
-                        x.Settings = myCandle.Settings.GenerateMyWebAPISettings(db);
-                        if (x.Asset.Trim().ToUpper() == myCandle.Settings.Currency.ToUpper())
+                        isInWarmUp = false;
+                        events.OnWarmUpEnded();
+                    }
+                }
+
+                // save balance
+                try
+                {
+                    if (webAPI.ResolveWebAPI(myCandle.Settings).GetBalance(out balances))
+                    {
+                        foreach (var x in balances)
                         {
-                            x.ToEuro = (x.Amount + x.Reserved).Round(myCandle.Settings.PrecisionCurrency);
-                            db.MyBalances.Add(x);
-                        }
-                        else if (x.Asset.Trim().ToUpper() == myCandle.Settings.Asset.ToUpper())
-                        {
-                            x.ToEuro = (myCandle.Close * (x.Amount + x.Reserved)).Round(myCandle.Settings.PrecisionCurrency);
-                            db.MyBalances.Add(x);
-                        }
-                        else
-                        {
-                            List<MyTicker> tickers;
-                            MyWebAPISettings settings = new MyWebAPISettings
-                            (
-                                Asset: x.Asset, 
-                                Currency: myCandle.Settings.Currency,
-                                Separator: myCandle.Settings.Separator, 
-                                PrecisionAsset: myCandle.Settings.PrecisionAsset,
-                                PrecisionCurrency: myCandle.Settings.PrecisionCurrency
-                            );
-                            settings = settings.GenerateMyWebAPISettings(db);
-                            if (webAPI.ResolveWebAPI(myCandle.Settings).GetTicker(out tickers, settings, false))
+                            if ((x.Amount + x.Reserved) == 0) continue;
+                            x.Candle = db.MyCandles.First(s => s.Id == myCandle.Id);
+                            x.Settings = myCandle.Settings.GenerateMyWebAPISettings(db);
+                            if (x.Asset.Trim().ToUpper() == myCandle.Settings.Currency.ToUpper())
                             {
-                                if (tickers.Count == 0) continue;
-                                x.ToEuro = (tickers[0].LastTrade * 
-                                    (x.Amount + x.Reserved)).Round(myCandle.Settings.PrecisionCurrency);
-                                x.Settings = db.MyWebAPISettings.First(s => s.Id == settings.Id);
+                                x.ToEuro = (x.Amount + x.Reserved).Round(myCandle.Settings.PrecisionCurrency);
                                 db.MyBalances.Add(x);
                             }
+                            else if (x.Asset.Trim().ToUpper() == myCandle.Settings.Asset.ToUpper())
+                            {
+                                x.ToEuro = (myCandle.Close * (x.Amount + x.Reserved)).Round(myCandle.Settings.PrecisionCurrency);
+                                db.MyBalances.Add(x);
+                            }
+                            else
+                            {
+                                List<MyTicker> tickers;
+                                MyWebAPISettings settings = new MyWebAPISettings
+                                (
+                                    Asset: x.Asset,
+                                    Currency: myCandle.Settings.Currency,
+                                    Separator: myCandle.Settings.Separator,
+                                    PrecisionAsset: myCandle.Settings.PrecisionAsset,
+                                    PrecisionCurrency: myCandle.Settings.PrecisionCurrency
+                                );
+                                settings = settings.GenerateMyWebAPISettings(db);
+                                if (webAPI.ResolveWebAPI(myCandle.Settings).GetTicker(out tickers, settings, false))
+                                {
+                                    if (tickers.Count == 0) continue;
+                                    x.ToEuro = (tickers[0].LastTrade *
+                                        (x.Amount + x.Reserved)).Round(myCandle.Settings.PrecisionCurrency);
+                                    x.Settings = db.MyWebAPISettings.First(s => s.Id == settings.Id);
+                                    db.MyBalances.Add(x);
+                                }
+                            }
                         }
+                        db.SaveChanges();
                     }
-                    db.SaveChanges();
                 }
-            } 
-            catch (Exception ex)
-            {
-                Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+                catch (Exception ex)
+                {
+                    Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+                }
+
+                // update average indicators
+                MACDAverage.ReceiveTick(myCandle);
+                MomentumAverage.ReceiveTick(myCandle);
+                RSIAverage.ReceiveTick(myCandle);
+
+                // excute interface event
+                strategies.Events_onCandleUpdate(myCandle);
             }
-
-            // update average indicators
-            MACDAverage.ReceiveTick(myCandle);
-            MomentumAverage.ReceiveTick(myCandle);
-            RSIAverage.ReceiveTick(myCandle);
-
-            // excute interface event
-            strategies.Events_onCandleUpdate(myCandle);
-        
         }
 
         private void Events_myWarmUpRequest()
@@ -449,17 +455,19 @@ namespace Broker.Common.Strategies
 
         private void onEmitTicker(long chatId)
         {
-            BrokerDBContext db = new BrokerDBContext();
-            MyTicker ticker = db.MyTickers.OrderByDescending(s => s.Id).FirstOrDefault();
-            if (ticker != null) 
+            using (BrokerDBContext db = new BrokerDBContext())
             {
-                string message = "Last ticker." +
-                    "\nTime: " + ticker.Timestamp.ToDateTime().ToShortTimeStringEU() +
-                    "\nAsk: " + ticker.Ask.ToPrecision(ticker.Settings, TypeCoin.Currency) +
-                    "\nBid: " + ticker.Bid.ToPrecision(ticker.Settings, TypeCoin.Currency) +
-                    "\nLast: " + ticker.LastTrade.ToPrecision(ticker.Settings, TypeCoin.Currency) +
-                    "\nRolling: " + ticker.Volume.ToStringRound(2);
-                strategies.TelegramBotClient.SendTextMessageAsync(chatId, message);
+                MyTicker ticker = db.MyTickers.OrderByDescending(s => s.Id).FirstOrDefault();
+                if (ticker != null)
+                {
+                    string message = "Last ticker." +
+                        "\nTime: " + ticker.Timestamp.ToDateTime().ToShortTimeStringEU() +
+                        "\nAsk: " + ticker.Ask.ToPrecision(ticker.Settings, TypeCoin.Currency) +
+                        "\nBid: " + ticker.Bid.ToPrecision(ticker.Settings, TypeCoin.Currency) +
+                        "\nLast: " + ticker.LastTrade.ToPrecision(ticker.Settings, TypeCoin.Currency) +
+                        "\nRolling: " + ticker.Volume.ToStringRound(2);
+                    strategies.TelegramBotClient.SendTextMessageAsync(chatId, message);
+                }
             }
         }
 
@@ -467,7 +475,7 @@ namespace Broker.Common.Strategies
         {
             BrokerDBContext db = new BrokerDBContext();
             MyCandle candle = db.MyCandles.OrderByDescending(s => s.Id).FirstOrDefault();
-            if (candle != null) 
+            if (candle != null)
             {
                 string message = "Last candle." +
                     "\nTime: " + candle.Date.ToShortTimeStringEU() +
@@ -599,7 +607,7 @@ namespace Broker.Common.Strategies
                         MyTradeCancelled cancelled = new MyTradeCancelled
                         {
                             IdReference = tradeCompleted.Id,
-                            Reason = "Price limit reached up: " + 
+                            Reason = "Price limit reached up: " +
                                 tradeCompleted.LimitPrice.Value.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency),
                             Settings = tradeCompleted.Settings
                         };
@@ -620,7 +628,7 @@ namespace Broker.Common.Strategies
         // functions
         private void ResetTimer(bool resetRetryTime = true)
         {
-            timerOrder.Change(Timeout.Infinite, Timeout.Infinite); 
+            timerOrder.Change(Timeout.Infinite, Timeout.Infinite);
             timerOrder.Dispose(); timerOrder = null;
             if (resetRetryTime) retryTimes = 1;
         }
@@ -629,7 +637,7 @@ namespace Broker.Common.Strategies
         {
             BrokerDBContext db = new BrokerDBContext();
             MyTicker myTicker = db.MyTickers
-                .OrderByDescending(s=>s.Timestamp)
+                .OrderByDescending(s => s.Timestamp)
                 .FirstOrDefault();
             if (myTicker != null)
                 return (tradeAction == TradeAction.Long) ?

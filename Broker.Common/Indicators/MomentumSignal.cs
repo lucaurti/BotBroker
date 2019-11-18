@@ -28,25 +28,28 @@ namespace Broker.Common.Indicators
                 Log.Debug("Momentum  : " + emav.Value().ToStringRound(2));
 
                 // save it to db
-                BrokerDBContext db = new BrokerDBContext();
-                MyMomentum MyMomentum;
-                MyMomentum = new MyMomentum();
-                MyMomentum.Timestamp = DateTime.Now.ToEpochTime();
-                MyMomentum.MomentumValue = emav.Value();
-                MyMomentum.Candle = db.MyCandles.First(s => s.Id == candle.Id);
-                db.MyMomentums.Add(MyMomentum);
-                db.SaveChanges();
+                using (BrokerDBContext db = new BrokerDBContext())
+                {
+                    MyMomentum MyMomentum;
+                    MyMomentum = new MyMomentum();
+                    MyMomentum.Timestamp = DateTime.Now.ToEpochTime();
+                    MyMomentum.MomentumValue = emav.Value();
+                    MyMomentum.Candle = db.MyCandles.First(s => s.Id == candle.Id);
+                    db.MyMomentums.Add(MyMomentum);
+                    db.SaveChanges();
+                }
             }
         }
+
         public decimal Value()
         {
             return emav.isPrimed() ? emav.Value() : 0;
         }
         public bool isPrimed()
-        {    
+        {
             return emav.isPrimed();
         }
-        public int PeriodElaborated() 
+        public int PeriodElaborated()
         {
             return emav.PeriodElaborated();
         }

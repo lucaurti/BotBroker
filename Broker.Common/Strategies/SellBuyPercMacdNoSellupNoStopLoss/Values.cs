@@ -7,7 +7,6 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
     [Serializable]
     internal class Values
     {
-
         // variables
         private decimal previousActionPrice = 0;
         private ActionType previousAction = ActionType.None;
@@ -29,25 +28,25 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
 
 
         // saved properties
-        internal decimal PreviousActionPrice 
-        { 
-            get 
-            { 
-                return previousActionPrice; 
+        internal decimal PreviousActionPrice
+        {
+            get
+            {
+                return previousActionPrice;
             }
-            set 
+            set
             {
                 previousActionPrice = value;
                 Misc.CacheManager("PreviousActionPrice", Misc.CacheType.Save, value);
             }
         }
 
-        internal ActionType PreviousAction 
-        { 
+        internal ActionType PreviousAction
+        {
             get
             {
                 return previousAction;
-            } 
+            }
             set
             {
                 previousAction = value;
@@ -60,12 +59,12 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
             }
         }
 
-        internal DateTime LastOpDate 
-        { 
+        internal DateTime LastOpDate
+        {
             get
             {
                 return lastOpDate;
-            } 
+            }
             set
             {
                 lastOpDate = value;
@@ -73,12 +72,12 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
             }
         }
 
-        internal MarketType MarketState 
-        { 
+        internal MarketType MarketState
+        {
             get
             {
                 return marketState;
-            } 
+            }
             set
             {
                 marketState = value;
@@ -87,12 +86,12 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
             }
         }
 
-        internal MarketType PreviousMarketState 
-        { 
+        internal MarketType PreviousMarketState
+        {
             get
             {
                 return previousMarketState;
-            } 
+            }
             set
             {
                 previousMarketState = value;
@@ -126,7 +125,7 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
         // function
         internal static ActionType ToActionType(string action)
         {
-            if (action == null) 
+            if (action == null)
                 return ActionType.None;
             switch (action.ToLower())
             {
@@ -145,7 +144,7 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
 
         internal static MarketType ToMarketType(string action)
         {
-            if (action == null) 
+            if (action == null)
                 return MarketType.None;
             switch (action.ToLower())
             {

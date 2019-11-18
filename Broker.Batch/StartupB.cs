@@ -35,6 +35,7 @@ namespace Broker.Batch
                 // init
                 myWebAPIList = ServiceLocator.Current.GetInstance<IList<MyWebAPI>>();
                 strategy = ServiceLocator.Current.GetInstance<MyStrategy>();
+                TestCode();
                 foreach (MyWebAPI webapi in myWebAPIList)
                 {
                     //tickers
@@ -45,12 +46,12 @@ namespace Broker.Batch
                             TimeSpan.Zero,
                             TimeSpan.FromSeconds(Misc.GetTickerTime));
 
-                   //candles
-                   timerCandle = new Timer(
-                       (e) => TimerCandle_Elapsed(webapi),
-                       null,
-                       Misc.RoundDateTimeCandle,
-                       TimeSpan.FromMinutes(Misc.GetCandleTime));
+                    //candles
+                    timerCandle = new Timer(
+                        (e) => TimerCandle_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromMinutes(Misc.GetCandleTime));
 
                     // remove old Ticker
                     timerRemoveOldTicker = new Timer(
@@ -88,6 +89,14 @@ namespace Broker.Batch
             return Task.CompletedTask;
         }
 
+        private static void TestCode()
+        {
+            //using (BrokerDBContext db = new BrokerDBContext())
+            //{
+            //    var averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(50).ToList().Average(s => s.Close);
+            //}
+        }
+
         public Task StopAsync(CancellationToken cancellationToken)
         {
             try
@@ -99,7 +108,7 @@ namespace Broker.Batch
                 timerRemoveOldMomentum?.Change(Timeout.Infinite, 0);
                 timerRemoveOldRsi?.Change(Timeout.Infinite, 0);
                 Log.Information("*** Broker ended ***");
-                
+
             }
             catch (Exception ex)
             {

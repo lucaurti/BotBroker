@@ -35,7 +35,7 @@ namespace Broker.Common.Indicators
             fastEMA.ReceiveTick(candle.Close);
             if (slowEMA.isPrimed() && fastEMA.isPrimed())
                 signalEMA.ReceiveTick(fastEMA.Value() - slowEMA.Value());
-                
+
             if (saveOnDB && signalEMA.isPrimed())
             {
                 decimal MACD = fastEMA.Value() - slowEMA.Value();
@@ -47,20 +47,23 @@ namespace Broker.Common.Indicators
                 Log.Debug("Hist      : " + hist.ToStringRound(4));
 
                 // save it to db
-                BrokerDBContext db = new BrokerDBContext();
-                MyMACD MyMacd;
-                MyMacd = new MyMACD();
-                MyMacd.Timestamp = DateTime.Now.ToEpochTime();
-                MyMacd.FastValue = fastEMA.Value();
-                MyMacd.SlowValue = slowEMA.Value();
-                MyMacd.SignalValue = signalEMA.Value();
-                MyMacd.MACD = MACD;
-                MyMacd.Hist = hist;
-                MyMacd.Candle = db.MyCandles.First(s => s.Id == candle.Id);
-                db.MyMACDs.Add(MyMacd);
-                db.SaveChanges();
+                using (BrokerDBContext db = new BrokerDBContext())
+                {
+                    MyMACD MyMacd;
+                    MyMacd = new MyMACD();
+                    MyMacd.Timestamp = DateTime.Now.ToEpochTime();
+                    MyMacd.FastValue = fastEMA.Value();
+                    MyMacd.SlowValue = slowEMA.Value();
+                    MyMacd.SignalValue = signalEMA.Value();
+                    MyMacd.MACD = MACD;
+                    MyMacd.Hist = hist;
+                    MyMacd.Candle = db.MyCandles.First(s => s.Id == candle.Id);
+                    db.MyMACDs.Add(MyMacd);
+                    db.SaveChanges();
+                }
             }
         }
+
         public void Value(out decimal MACD, out decimal signal, out decimal hist)
         {
             MACD = 0; signal = 0; hist = 0;
@@ -76,11 +79,10 @@ namespace Broker.Common.Indicators
         {
             return signalEMA.isPrimed();
         }
-        public int PeriodElaborated() 
+
+        public int PeriodElaborated()
         {
             return signalEMA.PeriodElaborated();
         }
-
     }
-
 }

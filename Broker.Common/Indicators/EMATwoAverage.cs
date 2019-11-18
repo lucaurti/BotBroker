@@ -38,18 +38,21 @@ namespace Broker.Common.Indicators
                 Log.Debug("Hist      : " + hist.ToStringRound(4));
 
                 // save it to db
-                BrokerDBContext db = new BrokerDBContext();
-                MyMACD MyMacd;
-                MyMacd = new MyMACD();
-                MyMacd.Timestamp = DateTime.Now.ToEpochTime();
-                MyMacd.FastValue = fastEMA.Value();
-                MyMacd.SlowValue = slowEMA.Value();
-                MyMacd.Hist = hist;
-                MyMacd.Candle = db.MyCandles.First(s => s.Id == candle.Id);
-                db.MyMACDs.Add(MyMacd);
-                db.SaveChanges();
+                using (BrokerDBContext db = new BrokerDBContext())
+                {
+                    MyMACD MyMacd;
+                    MyMacd = new MyMACD();
+                    MyMacd.Timestamp = DateTime.Now.ToEpochTime();
+                    MyMacd.FastValue = fastEMA.Value();
+                    MyMacd.SlowValue = slowEMA.Value();
+                    MyMacd.Hist = hist;
+                    MyMacd.Candle = db.MyCandles.First(s => s.Id == candle.Id);
+                    db.MyMACDs.Add(MyMacd);
+                    db.SaveChanges();
+                }
             }
         }
+
         public void Value(out decimal fast, out decimal slow, out decimal hist)
         {
             fast = 0; slow = 0; hist = 0;
@@ -64,27 +67,29 @@ namespace Broker.Common.Indicators
                 Log.Debug("Hist      : " + hist.ToStringRound(4));
 
                 // save it to db
-                BrokerDBContext db = new BrokerDBContext();
-                MyMACD MyMacd;
-                MyMacd = new MyMACD();
-                MyMacd.Timestamp = DateTime.Now.ToEpochTime();
-                MyMacd.FastValue = fastEMA.Value();
-                MyMacd.SlowValue = slowEMA.Value();
-                MyMacd.Hist = hist;
-                db.MyMACDs.Add(MyMacd);
-                db.SaveChanges();
+                using (BrokerDBContext db = new BrokerDBContext())
+                {
+                    MyMACD MyMacd;
+                    MyMacd = new MyMACD();
+                    MyMacd.Timestamp = DateTime.Now.ToEpochTime();
+                    MyMacd.FastValue = fastEMA.Value();
+                    MyMacd.SlowValue = slowEMA.Value();
+                    MyMacd.Hist = hist;
+                    db.MyMACDs.Add(MyMacd);
+                    db.SaveChanges();
+                }
             }
         }
+
         public bool isPrimed()
         {
             return slowEMA.isPrimed();
         }
 
-        public int PeriodElaborated() 
+        public int PeriodElaborated()
         {
             return slowEMA.PeriodElaborated();
         }
-
     }
 
 }

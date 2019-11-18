@@ -2,7 +2,7 @@ using System.Linq;
 using Broker.Common.Utility;
 using static Broker.Common.Strategies.Enumerator;
 
-namespace Broker.Batch.Models 
+namespace Broker.Batch.Models
 {
     public class Utility
     {
@@ -22,32 +22,33 @@ namespace Broker.Batch.Models
             }
             return 0;
         }
+
         public static decimal CalculateBuyAtUp(out decimal LastBuy, out decimal LastSell)
         {
             LastBuy = 0; LastSell = 0;
-            BrokerDBContext db = new BrokerDBContext();
-            var order = db.MyOrders
+            using (BrokerDBContext db = new BrokerDBContext())
+            {
+                var order = db.MyOrders
                 .OrderByDescending(s => s.Completed)
                 .FirstOrDefault();
-            if (order != null)
-            {
-                if (order.Type == TradeAction.Long) 
-                { 
-                    LastBuy = order.Price;
-                    return 0;
-                }
-                IConfigurationManager myService = ServiceLocator.Current.GetInstance<IConfigurationManager>();
-                var parameter = myService.FindParameter("buyatup", Misc.GetStrategy);
-                if (parameter != null)
+                if (order != null)
                 {
-                    LastSell = order.Price;
-                    parameter = myService.GetParameterValue(parameter, Misc.GetStrategy);
-                    return order.Price * parameter.ToDecimal();
+                    if (order.Type == TradeAction.Long)
+                    {
+                        LastBuy = order.Price;
+                        return 0;
+                    }
+                    IConfigurationManager myService = ServiceLocator.Current.GetInstance<IConfigurationManager>();
+                    var parameter = myService.FindParameter("buyatup", Misc.GetStrategy);
+                    if (parameter != null)
+                    {
+                        LastSell = order.Price;
+                        parameter = myService.GetParameterValue(parameter, Misc.GetStrategy);
+                        return order.Price * parameter.ToDecimal();
+                    }
                 }
+                return 0;
             }
-            return 0;
         }
-   
     }
-
 }
