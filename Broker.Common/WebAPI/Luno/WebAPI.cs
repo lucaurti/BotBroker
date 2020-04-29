@@ -12,7 +12,7 @@ namespace Broker.Common.WebAPI.Luno
     {
         // variables
         MyAuthentication authentication;
-        
+
 
         // properties
         Uri BaseEndpoint { get; set; }
@@ -74,7 +74,7 @@ namespace Broker.Common.WebAPI.Luno
         public bool PostNewOrder(MyWebAPISettings settings, Enumerator.TradeAction tradeAction, decimal volume, decimal price, out string orderID)
         {
             // client
-            var response = BaseEndpoint.GetAsync<PostOrder>(HttpMethod.Post, "postorder", authentication, 
+            var response = BaseEndpoint.GetAsync<PostOrder>(HttpMethod.Post, "postorder", authentication,
                 "pair=" + settings.Pair, "type=" + (tradeAction == Enumerator.TradeAction.Long ? "BID" : "ASK"),
                 "volume=" + volume.ToPrecision(settings, TypeCoin.Asset), "price=" + price.ToPrecision(settings, TypeCoin.Currency));
 
@@ -154,7 +154,7 @@ namespace Broker.Common.WebAPI.Luno
         // private functions
         private Enumerator.TradeState ToOrderState(string state)
         {
-            switch(state)
+            switch (state)
             {
                 case "PENDING": return Enumerator.TradeState.Pending;
                 case "COMPLETE": return Enumerator.TradeState.Completed;
@@ -162,5 +162,9 @@ namespace Broker.Common.WebAPI.Luno
             }
         }
 
+        public bool GetTrades(MyWebAPISettings settings, out List<MyTrade> trades)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -60,6 +60,7 @@ namespace Broker.Common.Strategies
             Events.onCandleUpdate += Events_onCandleUpdate;
             Events.myTradeRequest += Events_myTradeRequest;
             Events.myWarmUpRequest += Events_myWarmUpRequest;
+            Events.onTradesListRequest += Events_myTradesListRequest;
 
             // telegram
             if (config.mustStartTelegram)
@@ -431,6 +432,12 @@ namespace Broker.Common.Strategies
             mustStartTicker = true;
         }
 
+        private void Events_myTradesListRequest(MyWebAPISettings settings, out List<MyTrade> tradesList)
+        {
+            var myWebApi = webAPI.ResolveWebAPI(settings);
+            myWebApi.GetTrades(out tradesList);
+        }
+
         private void Events_onTelegramMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
             Log.Information("-> Signaling telegram bot");
@@ -644,6 +651,11 @@ namespace Broker.Common.Strategies
                     myTicker.Bid : myTicker.Ask;
             else
                 throw new Exception("Ticker unavailable.");
+        }
+
+        public void IamAlive()
+        {
+            strategies.Events_onIamAlive();
         }
     }
 }

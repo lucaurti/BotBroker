@@ -7,6 +7,7 @@ using Serilog.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Telegram.Bot;
 using static Broker.Common.Strategies.Enumerator;
 using static Broker.Common.Strategies.SellBuyMACDNoSellUp.Values;
@@ -25,7 +26,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
 
 
         // properties
-        private Values Current { get; set; }  = new Values();
+        private Values Current { get; set; } = new Values();
         private Values Saved { get; set; } = new Values();
         TelegramBotClient IStrategy.TelegramBotClient { get => telegramBot; set => telegramBot = value; }
         string IStrategy.TelegramBotPassword { get => telegramPassword; set => telegramPassword = value; }
@@ -89,15 +90,15 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             this.Current.PreviousMarketState = this.Current.MarketState;
             // check market type
             CheckMarketType();
-            
+
             // adjust values from price
             this.Current.BuyAt = Misc.GetParameterValue("buyAt", "SellBuyMACDNoSellUp").ToDecimal();
             this.Current.SellAt = Misc.GetParameterValue("sellAt", "SellBuyMACDNoSellUp").ToDecimal();
             this.Current.BuyAtUp = Misc.GetParameterValue("buyAtUp", "SellBuyMACDNoSellUp").ToDecimal();
             this.Current.StopLoss = Misc.GetParameterValue("stopLoss", "SellBuyMACDNoSellUp").ToDecimal();
-            this.Current.LimitShortPrice = 
+            this.Current.LimitShortPrice =
                 (
-                    this.Current.PreviousActionPrice * 
+                    this.Current.PreviousActionPrice *
                     Misc.GetParameterValue("limitShortPrice", "SellBuyMACDNoSellUp").ToDecimal()
                 )
                 .Round(myCandle.Settings.PrecisionCurrency);
@@ -106,7 +107,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             decimal stopLoss = ComputeStopless();
 
             // telegram
-            if (telegramSendLow) 
+            if (telegramSendLow)
             {
                 this.onTradeCandle(CandleType.Low, this.Current.LastLow);
                 telegramSendLow = false;
@@ -121,10 +122,10 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             if (this.DetectStopLoss(myCandle, stopLoss)) return;
 
             // check pause
-            if (this.DetectPauseStatus()) 
+            if (this.DetectPauseStatus())
             {
                 LogStrategy.AppendLog("Bot in pause", LogEventLevel.Information, LogStrategy.Destination.All);
-                return;            
+                return;
             }
 
             // reset per timeout
@@ -141,16 +142,16 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 var data = Misc.CacheManager("LastOpDate", Misc.CacheType.Load);
 
                 // set trade data
-                if (DetectPauseStatus()) 
+                if (DetectPauseStatus())
                     this.Current.PreviousAction = ActionType.Pause;
-                else 
+                else
                     this.Current.PreviousAction = ToActionType(Misc.GetParameterValue("lastOperation", "SellBuyMACDNoSellUp"));
                 decimal prevPrice = Misc.GetParameterValue("lastActionPrice", "SellBuyMACDNoSellUp").ToDecimal();
                 this.Current.PreviousActionPrice = (this.Current.PreviousAction == ActionType.Buy ? this.Current.LastLow : this.Current.LastHigh);
-                if (prevPrice > 0) 
-                    this.Current.PreviousActionPrice = prevPrice; 
+                if (prevPrice > 0)
+                    this.Current.PreviousActionPrice = prevPrice;
                 this.Current.LastOpDate = DateTime.Now;
-                if (Misc.MustRecoverData && action != ActionType.None && price != null && data != null) 
+                if (Misc.MustRecoverData && action != ActionType.None && price != null && data != null)
                 {
                     this.Saved = this.Current.DeepClone();
                     this.Current.PreviousAction = action;
@@ -169,7 +170,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 LogStrategy.AppendLog("LastLow: " + this.Current.LastLow.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("LastHigh: " + this.Current.LastHigh.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("Last date: " + this.Current.LastOpDate.ToShortDateTimeString(), LogEventLevel.Information, LogStrategy.Destination.All);
-                                       
+
                 // log initial trade values
                 decimal newThreshold;
                 if (this.Current.PreviousAction == ActionType.Sell)
@@ -226,13 +227,13 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 LogStrategy.AppendLog("PreviousBuyPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("MarketState: " + this.Current.MarketState.ToString(), LogEventLevel.Debug, LogStrategy.Destination.All);
 
-                if 
+                if
                 (
                     (
                         // sell by price
                         myCandle.Close > this.Current.PreviousActionPrice
                         && this.Current.MarketState == MarketType.Bearish)
-                    || 
+                    ||
                     (
                         // sell by change market 
                         this.Current.PreviousMarketState == MarketType.Bullish
@@ -248,8 +249,8 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                     this.Current.PreviousAction = ActionType.SospSell;
                     this.Current.LastLow = myCandle.Low;
                     this.Current.LastHigh = myCandle.Close;
-                    events.MyTradeRequest(myCandle.Settings, TradeAction.Short, 
-                        int.Parse(Misc.GetParameterValue("shortPercentage", "SellBuyMACDNoSellUp")), 
+                    events.MyTradeRequest(myCandle.Settings, TradeAction.Short,
+                        int.Parse(Misc.GetParameterValue("shortPercentage", "SellBuyMACDNoSellUp")),
                         null, this.Current.LimitShortPrice);
                 }
                 else
@@ -267,7 +268,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
 
                 var diffMinuteFromLastOperation = myCandle.Date.Subtract(this.Current.LastOpDate).TotalMinutes;
                 // buy by price
-                if 
+                if
                 (
                     this.Current.MarketState == MarketType.Bullish
                     && this.Current.PreviousMarketState == MarketType.Bearish
@@ -275,7 +276,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 {
                     // save old values
                     this.Saved = this.Current.DeepClone();
-                    
+
                     // new parameters
                     LogStrategy.AppendLog("-> Signaling advice LONG (normal)(buy) - buy by change market state", LogEventLevel.Debug, LogStrategy.Destination.All);
                     this.Current.PreviousAction = ActionType.SospBuy;
@@ -290,7 +291,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 {
                     LogStrategy.AppendLog("-> Signaling advice reset price", LogEventLevel.Debug, LogStrategy.Destination.All);
                     BrokerDBContext db = new BrokerDBContext();
-                    decimal averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(10).Average(s=>s.Close);
+                    decimal averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(10).Average(s => s.Close);
                     this.Current.PreviousActionPrice = averageCloseCandle;
                     this.Current.LastOpDate = DateTime.Now;
                     LogStrategy.AppendLog("->new price: " + averageCloseCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
@@ -302,7 +303,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             LogStrategy.AppendLog(log, LogEventLevel.Fatal, LogStrategy.Destination.File);
             onCandleUpdateCompleted(log);
         }
-        
+
         void IStrategy.Events_onTradeCompleted(MyTradeCompleted tradeCompleted)
         {
             LogStrategy.AppendLog("-> Signaling onTradeCompleted", LogEventLevel.Information, LogStrategy.Destination.File);
@@ -411,12 +412,12 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             else
             {
                 // abort by telegram
-                LogStrategy.AppendLog("-> Telegram advice change status: " + strInText[2] +";"+strInText[3]);
+                LogStrategy.AppendLog("-> Telegram advice change status: " + strInText[2] + ";" + strInText[3]);
 
-                if (strInText[2].ToLower()==ActionType.Buy.ToString().ToLower())
+                if (strInText[2].ToLower() == ActionType.Buy.ToString().ToLower())
                     this.Current.PreviousAction = ActionType.Buy;
-                else if (strInText[2].ToLower()==ActionType.Sell.ToString().ToLower())
-                    this.Current.PreviousAction = ActionType.Sell; 
+                else if (strInText[2].ToLower() == ActionType.Sell.ToString().ToLower())
+                    this.Current.PreviousAction = ActionType.Sell;
                 this.Current.PreviousActionPrice = Convert.ToDecimal(strInText[3]);
                 this.Current.LastOpDate = DateTime.Now;
 
@@ -436,7 +437,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 LogStrategy.AppendLog("-> Telegram advice change status: " + status.ToString());
 
                 // change status
-                if (!status) 
+                if (!status)
                     this.Current.PreviousAction = ActionType.Pause;
                 else
                     this.Current.PreviousAction = ToActionType((string)Misc.CacheManager("PreviousAction", Misc.CacheType.Load));
@@ -481,7 +482,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 this.Current = new Values
                 {
                     PreviousAction = ActionType.Reset,
-                     
+
                 };
 
                 // telegram
@@ -525,7 +526,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 this.Current.PreviousAction = ActionType.SospSell;
                 this.Current.LastLow = this.Current.CurrentCandleClose;
                 this.Current.LastHigh = this.Current.CurrentCandleClose;
-                events.MyTradeRequest(settings, TradeAction.Short, 
+                events.MyTradeRequest(settings, TradeAction.Short,
                     int.Parse(Misc.GetParameterValue("shortPercentage", "SellBuyMACDNoSellUp")));
 
                 // telegram
@@ -537,7 +538,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             string message;
             MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
 
-            if (this.Current.PreviousAction == ActionType.None) 
+            if (this.Current.PreviousAction == ActionType.None)
             {
                 message = "Trade Status: " +
                     "\nWarmUp in progress.";
@@ -613,7 +614,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
         {
             if (this.telegramBot == null || this.telegramUsernameTo == null) return;
             var message = "Trade completed. " +
-	            "\nID: " + tradeCompleted.OrderId + 
+                "\nID: " + tradeCompleted.OrderId +
                 "\nAction: " + tradeCompleted.Action +
                 "\nPrice: " + tradeCompleted.Price.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
                 "\nAmount: " + tradeCompleted.Amount.ToPrecision(tradeCompleted.Settings, TypeCoin.Asset) +
@@ -621,10 +622,10 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 "\nBalance: " + tradeCompleted.Balance.ToStringRound(2) +
                 "\nEffective price: " + tradeCompleted.EffectivePrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
                 "\nNew price: " + newPrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-	        if (tradeCompleted.Action == TradeAction.Long)
-		        message += "\nNew stopLoss: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-	        else if (tradeCompleted.Action == TradeAction.Short)
-		        message += "\nNew sellUp: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+            if (tradeCompleted.Action == TradeAction.Long)
+                message += "\nNew stopLoss: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+            else if (tradeCompleted.Action == TradeAction.Short)
+                message += "\nNew sellUp: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
             LogStrategy.AppendLog(message, LogEventLevel.Fatal, LogStrategy.Destination.File);
             LogStrategy.AppendLog(message, LogEventLevel.Verbose, LogStrategy.Destination.All);
             telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
@@ -666,7 +667,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 decimal days = (decimal)((myCandle.Date - this.Current.LastOpDate).TotalDays);
                 if (days >= int.Parse(Misc.GetParameterValue("timeoutDays", "SellBuyMACDNoSellUp")))
                 {
-                    LogStrategy.AppendLog("-> Signaling advice RESET - days: "+days+" > timeoutDays", LogEventLevel.Information, LogStrategy.Destination.All);
+                    LogStrategy.AppendLog("-> Signaling advice RESET - days: " + days + " > timeoutDays", LogEventLevel.Information, LogStrategy.Destination.All);
                     LogStrategy.AppendLog("CandleClose         : " + myCandle.Close.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
                     LogStrategy.AppendLog("Last date           : " + this.Current.LastOpDate.ToShortDateTimeString(), LogEventLevel.Information, LogStrategy.Destination.All);
                     LogStrategy.AppendLog("Day Passed          : " + days.ToStringRound(2), LogEventLevel.Information, LogStrategy.Destination.All);
@@ -711,15 +712,15 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                     LogStrategy.AppendLog("StopLoss: " + stopLoss.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
                     LogStrategy.AppendLog("PreviousAction: " + this.Current.PreviousAction, LogEventLevel.Information, LogStrategy.Destination.All);
                     LogStrategy.AppendLog("PreviousActionPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Information, LogStrategy.Destination.All);
-                    
+
                     this.Current.PreviousActionPrice = myCandle.Close;
                     this.Current.PreviousAction = ActionType.SospLoss;
-                    
+
                     events.MyTradeRequest(myCandle.Settings, TradeAction.Short,
                         int.Parse(Misc.GetParameterValue("stopLossPercentage", "SellBuyMACDNoSellUp")));
 
                     return true;
-                    
+
                 }
 
                 // second or more stoploss signal
@@ -790,7 +791,7 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
         }
         private void CheckMarketType()
         {
-            
+
             if (this.Current.PreviousAction == ActionType.WarmUp ||
                 this.Current.PreviousAction == ActionType.None)
                 return;
@@ -805,11 +806,11 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
                 Line macdLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.MACD, y2 = macdValue };
                 Line signalLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.SignalValue, y2 = signalValue };
                 Point c = LineIntersection.FindIntersection(macdLine, signalLine);
-                if (!c.Equals(default(Point))) 
+                if (!c.Equals(default(Point)))
                 {
                     LogStrategy.AppendLog("-> Signaling crossover line", LogEventLevel.Information, LogStrategy.Destination.All);
                     LogStrategy.AppendLog("Point Y: " + c.y.ToStringRound(2), LogEventLevel.Debug, LogStrategy.Destination.All);
-                    LogStrategy.AppendLog("MACD Y: " + macdLine.y2.ToStringRound(2),  LogEventLevel.Debug, LogStrategy.Destination.All);
+                    LogStrategy.AppendLog("MACD Y: " + macdLine.y2.ToStringRound(2), LogEventLevel.Debug, LogStrategy.Destination.All);
                     if (macdLine.y2 > c.y)
                     {
                         LogStrategy.AppendLog("Signaling crossover line - MarketState: Bullish - Direction: Up", LogEventLevel.Information, LogStrategy.Destination.All);
@@ -833,6 +834,14 @@ namespace Broker.Common.Strategies.SellBuyMACDNoSellUp
             return stopLossPerc < stopLossMin ? stopLossPerc : stopLossMin;
         }
 
+        public void Events_onIamAlive()
+        {
+            if (this.telegramBot == null || this.telegramUsernameTo == null) return;
+            StringBuilder message = new StringBuilder();
+            message.AppendLine(DateTime.Now.ToShortDateTimeString());
+            message.AppendLine("Broker Alive");
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
+        }
     }
 
 }

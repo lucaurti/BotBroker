@@ -18,6 +18,7 @@ namespace Broker.Common.Events
         public event MyTradeErroredEventHandler onTradeErrored;
         public event MyTradeRequestHandler myTradeRequest;
         public event MyWarmUpRequestHandler myWarmUpRequest;
+        public event MyTradesListRequestHandler onTradesListRequest;
 
 
         // events
@@ -57,6 +58,10 @@ namespace Broker.Common.Events
         {
             myWarmUpRequest?.Invoke();
         }
-
+        public void MyTradesListRequest(MyWebAPISettings settings, out List<MyTrade> tradesList)
+        {
+            tradesList = new List<MyTrade>();
+            onTradesListRequest?.Invoke(settings, out tradesList);
+        }
     }
 }

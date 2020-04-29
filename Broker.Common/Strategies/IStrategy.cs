@@ -23,7 +23,7 @@ namespace Broker.Common.Strategies
         void Events_onTradeCancelled(MyTradeCancelled traceCancelled);
         void Events_onTradeErrored(MyTradeCancelled tradeErrored);
         void Events_onTelegramMessage(object sender, Telegram.Bot.Args.MessageEventArgs e);
-
+        void Events_onIamAlive();
     }
 
 }

@@ -13,6 +13,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Telegram.Bot;
 using Websocket.Client;
 using static Broker.Common.Strategies.Enumerator;
 
@@ -48,9 +49,9 @@ namespace Broker.Common.WebAPI.Binance
         private HttpClient CreateHttpClient(Uri baseUri)
         {
             HttpClient httpClient;
-            
+
             // set proxy if needed
-            if (Extension.GetProxyHost != null && Extension.GetProxyPort.HasValue) 
+            if (Extension.GetProxyHost != null && Extension.GetProxyPort.HasValue)
             {
                 HttpClientHandler httpClientHandler = new HttpClientHandler()
                 {
@@ -63,7 +64,7 @@ namespace Broker.Common.WebAPI.Binance
                 httpClient = new HttpClient();
 
             // autentication
-            
+
             // return
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Broker C#");
             httpClient.DefaultRequestHeaders.Accept
@@ -74,7 +75,7 @@ namespace Broker.Common.WebAPI.Binance
 
         private T GetAsync<T>(Uri baseUri, HttpMethod method, bool isSigned, string requestUrl, params string[] parametersUrl)
         {
-            
+
             // firm message
             if (isSigned)
             {
@@ -92,10 +93,10 @@ namespace Broker.Common.WebAPI.Binance
             // get client
             HttpClient httpClient = CreateHttpClient(baseUri);
             string uri = httpClient.BaseAddress.ComposeURI(HttpMethod.Get, requestUrl, parametersUrl);
-            if (isSigned) 
-                httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-MBX-APIKEY", 
+            if (isSigned)
+                httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-MBX-APIKEY",
                     Misc.GetParameterValue("keyId", Misc.GetExchange));
-            
+
             // call and response
             using (var request = new HttpRequestMessage(method, uri))
             {
@@ -104,11 +105,11 @@ namespace Broker.Common.WebAPI.Binance
                 {
                     var data = response.Content.ReadAsStringAsync().Result;
                     httpClient.Dispose();
-                    if (typeof(T) == typeof(Boolean)) 
-                        return (T) Convert.ChangeType(true, typeof(T));
+                    if (typeof(T) == typeof(Boolean))
+                        return (T)Convert.ChangeType(true, typeof(T));
                     return JsonConvert.DeserializeObject<T>(data);
                 }
-                else 
+                else
                 {
                     httpClient.Dispose();
                     string message = (response.Content != null) ? " - " + response.Content.ReadAsStringAsync().Result : "";
@@ -174,7 +175,7 @@ namespace Broker.Common.WebAPI.Binance
             var filter = symbol.filters.Where(s => s.filterType == "MIN_NOTIONAL").FirstOrDefault();
             if (filter == null) throw new Exception("Filter MIN_NOTIONAL not found.");
             decimal minOrder = filter.minNotional.ToDecimal();
-            if ((volume * price) < minOrder) 
+            if ((volume * price) < minOrder)
                 throw new Exception("Minimum volume (" + minOrder.ToPrecision(settings, TypeCoin.Asset) + ") not reachable.");
 
             // manage price
@@ -191,8 +192,8 @@ namespace Broker.Common.WebAPI.Binance
             }
 
             // client
-            var response = GetAsync<PostOrder>(BaseEndpoint, HttpMethod.Post, true, "v3/order", 
-                "symbol=" + settings.Pair, "side=" + (tradeAction == Enumerator.TradeAction.Long ? "BUY" : "SELL"), 
+            var response = GetAsync<PostOrder>(BaseEndpoint, HttpMethod.Post, true, "v3/order",
+                "symbol=" + settings.Pair, "side=" + (tradeAction == Enumerator.TradeAction.Long ? "BUY" : "SELL"),
                 "type=LIMIT", "quantity=" + volume.ToPrecision(settings, TypeCoin.Asset), "timeInForce=GTC",
                 "price=" + price.ToPrecision(settings, TypeCoin.Currency));
 
@@ -203,15 +204,15 @@ namespace Broker.Common.WebAPI.Binance
         public bool GetOrder(MyWebAPISettings settings, string orderID, out MyOrder order)
         {
             // client 
-            var response = GetAsync<Order>(BaseEndpoint, HttpMethod.Get, true, "v3/order", 
+            var response = GetAsync<Order>(BaseEndpoint, HttpMethod.Get, true, "v3/order",
                 "symbol=" + settings.Pair, "origClientOrderId=" + orderID);
 
             // get fees
             decimal makerFee = 0;
             TradeState state = ToOrderState(response.status);
-            if (state == TradeState.Completed) 
+            if (state == TradeState.Completed)
             {
-                try 
+                try
                 {
                     var responseFee = GetAsync<AccountInfo>(BaseEndpoint, HttpMethod.Get, true, "v3/account");
                     makerFee = ("0." + responseFee.makerCommission).ToDecimal();
@@ -225,7 +226,7 @@ namespace Broker.Common.WebAPI.Binance
             {
                 // save
                 Completed = (
-                    response.updateTime > 0 ? 
+                    response.updateTime > 0 ?
                     ((long)response.updateTime / 1000) :
                     DateTime.Now.ToEpochTime()
                 ),
@@ -245,16 +246,17 @@ namespace Broker.Common.WebAPI.Binance
         public bool PostCancelOrder(MyWebAPISettings settings, string orderID)
         {
             // client 
-            var response = GetAsync<CancelOrder>(BaseEndpoint, HttpMethod.Delete, true, "v3/order", 
+            var response = GetAsync<CancelOrder>(BaseEndpoint, HttpMethod.Delete, true, "v3/order",
                 "symbol=" + settings.Pair, "origClientOrderId=" + orderID);
 
             // return
             return (response.status == "CANCELED");
         }
+
         public bool GetOrderBook(MyWebAPISettings settings, out List<MyOrderBook> orderBook)
         {
             // client 
-            var response = GetAsync<OrderBooks>(BaseEndpoint, HttpMethod.Get, false, "v1/depth", "symbol=" + settings.Pair, "limit=20");
+            var response = GetAsync<OrderBooks>(BaseEndpoint, HttpMethod.Get, false, "v1/depth", "symbol=" + settings.Pair, "limit=1000");
             orderBook = new List<MyOrderBook>();
 
             // ask
@@ -284,7 +286,7 @@ namespace Broker.Common.WebAPI.Binance
                 };
                 orderBook.Add(order);
             }
-            orderBook = orderBook.OrderBy(s => s.Action).ToList();
+            //orderBook = orderBook.OrderBy(s => s.Action).ToList();
 
             return (orderBook.Count > 0);
         }
@@ -293,7 +295,7 @@ namespace Broker.Common.WebAPI.Binance
         // private functions
         private Enumerator.TradeState ToOrderState(string state)
         {
-            switch(state)
+            switch (state)
             {
                 case "FILLED": return Enumerator.TradeState.Completed;
                 default: return Enumerator.TradeState.Pending;
@@ -310,9 +312,9 @@ namespace Broker.Common.WebAPI.Binance
             }
             return stringHash;
         }
-        
+
         // websocket
-        private async Task WebSocketManager(MyWebAPISettings settings, Uri urlSocket, IWebSocket websocket) 
+        private async Task WebSocketManager(MyWebAPISettings settings, Uri urlSocket, IWebSocket websocket)
         {
             var exitEvent = new ManualResetEvent(false);
             var uriSocket = new Uri(urlSocket.ComposeURI(HttpMethod.Get, "ws", settings.Pair.ToLower() + "@ticker"));
@@ -321,15 +323,15 @@ namespace Broker.Common.WebAPI.Binance
                 using (WebsocketClient client = new WebsocketClient(uriSocket))
                 {
                     client.ReconnectTimeoutMs = (int)TimeSpan.FromSeconds(Misc.GetTickerTime).TotalMilliseconds;
-                    client.ReconnectionHappened.Subscribe(type => 
+                    client.ReconnectionHappened.Subscribe(type =>
                     {
                         Log.Debug("Socket restart         : " + type.ToString());
                     });
                     client.MessageReceived.Subscribe(
-                        msg => 
+                        msg =>
                         {
                             SocketTicker response = JsonConvert.DeserializeObject<SocketTicker>(msg.Text);
-                            if (response.e == "24hrTicker") 
+                            if (response.e == "24hrTicker")
                             {
                                 MyTicker ticker = new MyTicker
                                 {
@@ -345,18 +347,55 @@ namespace Broker.Common.WebAPI.Binance
                             }
                             if (secondsWebSocket > 0)
                                 System.Threading.Thread.Sleep(secondsWebSocket);
-                        }    
+                        }
                     );
                     await client.Start();
                     Log.Information("-> WebSocket        : Active");
                     exitEvent.WaitOne();
                 }
-            } 
+            }
             catch (Exception ex)
             {
                 Log.Debug(ex.Message + Environment.NewLine + ex.ToString());
             }
         }
-    
+
+        public bool GetTrades(MyWebAPISettings settings, out List<MyTrade> trades)
+        {
+            // client 
+            var response = GetAsync<List<Trade>>(BaseEndpoint, HttpMethod.Get, false, "v3/trades", "symbol=" + settings.Pair, "limit=5000");
+            trades = new List<MyTrade>();
+            DateTime startDateTime = DateTime.Now;
+            while (true)
+            {
+                if (startDateTime.Minute % Misc.GetCandleTime == 0)
+                    break;
+                startDateTime = startDateTime.AddMinutes(-1);
+            }
+            DateTime endDateTime = startDateTime.AddMinutes(Misc.GetCandleTime);
+            startDateTime = new DateTime(startDateTime.Year, startDateTime.Month, startDateTime.Day, startDateTime.Hour, startDateTime.Minute, 0);
+            endDateTime = new DateTime(endDateTime.Year, endDateTime.Month, endDateTime.Day, endDateTime.Hour, endDateTime.Minute, 0);
+            long start = Convert.ToInt64(startDateTime.ToUnixTimeStamp());
+            long end = Convert.ToInt64(endDateTime.ToUnixTimeStamp());
+            foreach (var x in response)
+            {
+                if (x.time >= start && x.time <= end)
+                {
+                    MyTrade myTrade = new MyTrade();
+                    myTrade.id = x.id;
+                    myTrade.isBestMatch = x.isBestMatch;
+                    if (x.isBuyerMaker)
+                        myTrade.action = Enumerator.TradeAction.Long;
+                    else
+                        myTrade.action = Enumerator.TradeAction.Short;
+                    myTrade.price = x.price;
+                    myTrade.qty = x.qty;
+                    myTrade.quoteQty = x.quoteQty;
+                    myTrade.time = x.time;
+                    trades.Add(myTrade);
+                }
+            }
+            return (trades.Count > 0);
+        }
     }
 }

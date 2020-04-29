@@ -92,6 +92,11 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
             //check market type
             CheckMarketType();
 
+            //double ResultVolumeInLastCandle = 0;
+            //double ResultVolumePriceInLastCandle = 0;
+            //MarketType marketTypeTradesInLastCandle = MarketType.None;
+            //CheckLastTradesType(myCandle.Settings, out ResultVolumeInLastCandle, out ResultVolumePriceInLastCandle, out marketTypeTradesInLastCandle);
+
             //retrieve params for buy and sell
             this.Current.BuyAt = Misc.GetParameterValue("buyAt", NameStrategy).ToDecimal();
             this.Current.SellAt = Misc.GetParameterValue("sellAt", NameStrategy).ToDecimal();
@@ -187,9 +192,13 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 // log parameters
                 LogStrategy.AppendLog("-> Expected SHORT (sell)", LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("CandleClose: " + myCandle.Close.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
+                LogStrategy.AppendLog("PreviousMarketState: " + this.Current.PreviousMarketState, LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("PreviousBuyPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("LimitLowerSell: " + LimitLowerSell.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("MarketState: " + this.Current.MarketState.ToString(), LogEventLevel.Debug, LogStrategy.Destination.All);
+                //LogStrategy.AppendLog("ResultVolumeInLastCandle: " + ResultVolumeInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
+                //LogStrategy.AppendLog("ResultVolumePriceInLastCandle: " + ResultVolumePriceInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
+                //LogStrategy.AppendLog("MarketTypeTradesInLastCandle: " + marketTypeTradesInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
 
                 if (this.Current.MarketState == MarketType.Bearish && myCandle.Close >= LimitLowerSell)
                 {
@@ -218,8 +227,12 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 LogStrategy.AppendLog("-> Expected LONG (buy)", LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("CandleClose: " + myCandle.Close.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("PreviousMarketState: " + this.Current.PreviousMarketState, LogEventLevel.Debug, LogStrategy.Destination.All);
+                LogStrategy.AppendLog("PreviousBuyPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("LimitUpperBuy: " + LimitUpperBuy.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("MarketState: " + this.Current.MarketState.ToString(), LogEventLevel.Debug, LogStrategy.Destination.All);
+                //LogStrategy.AppendLog("ResultVolumeInLastCandle: " + ResultVolumeInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
+                //LogStrategy.AppendLog("ResultVolumePriceInLastCandle: " + ResultVolumePriceInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
+                //LogStrategy.AppendLog("MarketTypeTradesInLastCandle: " + marketTypeTradesInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);
 
                 // buy by price
                 if (this.Current.MarketState == MarketType.Bullish && myCandle.Close <= LimitUpperBuy)
@@ -680,6 +693,40 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 }
             }
         }
+
+        public void Events_onIamAlive()
+        {
+            if (this.telegramBot == null || this.telegramUsernameTo == null) return;
+            StringBuilder message = new StringBuilder();
+            message.AppendLine(DateTime.Now.ToShortDateTimeString());
+            message.AppendLine("Broker Alive");
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
+        }
+
+        //private void CheckLastTradesType(MyWebAPISettings settings, out double ResultVolume, out double ResultVolumePrice, out MarketType marketTypeTrades)
+        //{
+        //    List<MyTrade> list;
+        //    events.MyTradesListRequest(settings, out list);
+        //    ResultVolume = 0;
+        //    ResultVolumePrice = 0;
+        //    foreach (var item in list)
+        //    {
+        //        if (item.action == Enumerator.TradeAction.Long)
+        //        {
+        //            ResultVolume += Convert.ToDouble(item.qty);
+        //            ResultVolumePrice += Convert.ToDouble(item.quoteQty);
+        //        }
+        //        else
+        //        {
+        //            ResultVolume += (Convert.ToDouble(item.qty) * Convert.ToDouble(-1));
+        //            ResultVolumePrice += (Convert.ToDouble(item.quoteQty) * Convert.ToDouble(-1));
+        //        }
+        //    }
+        //    if (ResultVolume > 0)
+        //        marketTypeTrades = MarketType.Bullish;
+        //    else
+        //        marketTypeTrades = MarketType.Bearish;
+        //}
 
         //private void onTradeStopCompleted(decimal price, decimal newStopless)
         //{

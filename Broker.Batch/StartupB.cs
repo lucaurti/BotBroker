@@ -1,14 +1,13 @@
-﻿using Broker.Common.Strategies;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Broker.Common.Strategies;
 using Broker.Common.Utility;
 using Broker.Common.WebAPI;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Text;
 
 namespace Broker.Batch
 {
@@ -23,6 +22,7 @@ namespace Broker.Batch
         private Timer timerRemoveOldRsi { get; set; } = null;
         private Timer timerRemoveOldMacd { get; set; } = null;
         private Timer timerRemoveOldMomentum { get; set; } = null;
+        private Timer timerIamAlive { get; set; } = null;
 
 
         // services endpoint
@@ -35,7 +35,7 @@ namespace Broker.Batch
                 // init
                 myWebAPIList = ServiceLocator.Current.GetInstance<IList<MyWebAPI>>();
                 strategy = ServiceLocator.Current.GetInstance<MyStrategy>();
-                TestCode();
+                TestCode(myWebAPIList.FirstOrDefault());
                 foreach (MyWebAPI webapi in myWebAPIList)
                 {
                     //tickers
@@ -80,6 +80,13 @@ namespace Broker.Batch
                         null,
                         Misc.RoundDateTimeCandle,
                         TimeSpan.FromMinutes(Misc.GetCandleTime));
+
+                    // remove old macd
+                    timerIamAlive = new Timer(
+                        (e) => TimerIamAlive_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromHours(24));
                 }
             }
             catch (Exception ex)
@@ -89,12 +96,32 @@ namespace Broker.Batch
             return Task.CompletedTask;
         }
 
-        private static void TestCode()
+        private static void TestCode(MyWebAPI webapi)
         {
-            //using (BrokerDBContext db = new BrokerDBContext())
+            //var list = new List<Common.WebAPI.Models.MyOrderBook>();
+            //webapi.GetOrderBook(out list);
+            //decimal ris = 0;
+            //foreach (var item in list)
             //{
-            //    var averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(50).ToList().Average(s => s.Close);
+            //    if (item.Action == Enumerator.TradeAction.Long)
+            //        ris = ris + item.Volume;
+            //    else
+            //        ris = ris + (-item.Volume);
             //}
+            //string a = ris.ToString(); var averageCloseCandle = db.MyCandles.OrderByDescending(s => s.Date).Take(50).ToList().Average(s => s.Close);
+            //}
+
+            //double ris = 0;
+            //var list = new List<Common.WebAPI.Models.MyTrade>();
+            //webapi.GetTrades(out list);
+            //foreach (var item in list)
+            //{
+            //    if (item.action == Enumerator.TradeAction.Long)
+            //        ris += Convert.ToDouble(item.qty);
+            //    else
+            //        ris += (Convert.ToDouble(item.qty) * Convert.ToDouble(-1));
+            //}
+            //string a = ris.ToString();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -190,6 +217,19 @@ namespace Broker.Batch
             {
                 webapi.RemoveOldMomentums();
                 Log.Debug("Timer Remove Old Momentum elapsed...");
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex);
+            }
+        }
+
+        private void TimerIamAlive_Elapsed(MyWebAPI webapi)
+        {
+            try
+            {
+                strategy.IamAlive();
+                Log.Debug("Timer I am Alive elapsed...");
             }
             catch (Exception ex)
             {

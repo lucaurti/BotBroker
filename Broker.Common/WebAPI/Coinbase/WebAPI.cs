@@ -48,9 +48,9 @@ namespace Broker.Common.WebAPI.Coinbase
         private HttpClient CreateHttpClient(Uri baseUri, string timestamp)
         {
             HttpClient httpClient;
-            
+
             // set proxy if needed
-            if (Extension.GetProxyHost != null && Extension.GetProxyPort.HasValue) 
+            if (Extension.GetProxyHost != null && Extension.GetProxyPort.HasValue)
             {
                 HttpClientHandler httpClientHandler = new HttpClientHandler()
                 {
@@ -66,7 +66,7 @@ namespace Broker.Common.WebAPI.Coinbase
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("CB-ACCESS-KEY", authentication.KeyID);
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("CB-ACCESS-PASSPHRASE", authentication.KeySecret);
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Broker C#");
-            
+
             // return
             httpClient.DefaultRequestHeaders.Add("CB-ACCESS-TIMESTAMP", timestamp);
             httpClient.DefaultRequestHeaders.Accept
@@ -84,13 +84,13 @@ namespace Broker.Common.WebAPI.Coinbase
             using (var request = new HttpRequestMessage(method, uri))
             {
                 // body
-                
-                if (method == HttpMethod.Post) 
+
+                if (method == HttpMethod.Post)
                 {
                     var values = new Dictionary<string, string>();
                     foreach (string param in parametersUrl)
                         values.Add(
-                            param.Substring(0, param.IndexOf('=')), 
+                            param.Substring(0, param.IndexOf('=')),
                             param.Substring(param.IndexOf('=') + 1)
                         );
                     var json = JsonConvert.SerializeObject(values);
@@ -109,11 +109,11 @@ namespace Broker.Common.WebAPI.Coinbase
                 {
                     var data = response.Content.ReadAsStringAsync().Result;
                     httpClient.Dispose();
-                    if (typeof(T) == typeof(Boolean)) 
-                        return (T) Convert.ChangeType(true, typeof(T));
+                    if (typeof(T) == typeof(Boolean))
+                        return (T)Convert.ChangeType(true, typeof(T));
                     return JsonConvert.DeserializeObject<T>(data);
                 }
-                else 
+                else
                 {
                     httpClient.Dispose();
                     string message = (response.Content != null) ? " - " + response.Content.ReadAsStringAsync().Result : "";
@@ -168,7 +168,7 @@ namespace Broker.Common.WebAPI.Coinbase
         public bool PostNewOrder(MyWebAPISettings settings, Enumerator.TradeAction tradeAction, decimal volume, decimal price, out string orderID)
         {
             // client
-            var response = GetAsync<Order>(BaseEndpoint, HttpMethod.Post, "orders", 
+            var response = GetAsync<Order>(BaseEndpoint, HttpMethod.Post, "orders",
                 "size=" + volume.ToPrecision(settings, TypeCoin.Asset), "price=" + price.ToPrecision(settings, TypeCoin.Currency),
                 "side=" + (tradeAction == Enumerator.TradeAction.Long ? "buy" : "sell"), "product_id=" + settings.Pair);
 
@@ -184,11 +184,11 @@ namespace Broker.Common.WebAPI.Coinbase
             {
 
                 // save
-                Completed = 
+                Completed =
                     (response.done_at != null) ?
                     DateTime.Parse(response.done_at.ToString()).ToEpochTime() :
                     DateTime.Now.ToEpochTime(),
-                Creation = 
+                Creation =
                     (response.created_at != null) ?
                     DateTime.Parse(response.created_at.ToString()).ToEpochTime() :
                     DateTime.Now.ToEpochTime(),
@@ -239,7 +239,7 @@ namespace Broker.Common.WebAPI.Coinbase
         // private functions
         private Enumerator.TradeState ToOrderState(string state)
         {
-            switch(state)
+            switch (state)
             {
                 case "done": return Enumerator.TradeState.Completed;
                 case "open": return Enumerator.TradeState.Pending;
@@ -254,10 +254,10 @@ namespace Broker.Common.WebAPI.Coinbase
             using (HMACSHA256 hmaccsha = new HMACSHA256(secret))
                 return Convert.ToBase64String(hmaccsha.ComputeHash(bytes));
         }
-        
-        
+
+
         // websocket
-        private async Task WebSocketManager(MyWebAPISettings settings, Uri urlSocket, IWebSocket websocket) 
+        private async Task WebSocketManager(MyWebAPISettings settings, Uri urlSocket, IWebSocket websocket)
         {
             var exitEvent = new ManualResetEvent(false);
             try
@@ -265,16 +265,16 @@ namespace Broker.Common.WebAPI.Coinbase
                 using (var client = new WebsocketClient(urlSocket))
                 {
                     client.ReconnectTimeoutMs = (int)TimeSpan.FromSeconds(Misc.GetTickerTime).TotalMilliseconds;
-                    client.ReconnectionHappened.Subscribe(type => 
+                    client.ReconnectionHappened.Subscribe(type =>
                     {
                         Log.Debug("Socket restart         : " + type.ToString());
                         WebSocketSubscribe(settings, client);
                     });
                     client.MessageReceived.Subscribe(
-                        msg => 
+                        msg =>
                         {
                             SocketTicker response = JsonConvert.DeserializeObject<SocketTicker>(msg.Text);
-                            if (response.type == "ticker") 
+                            if (response.type == "ticker")
                             {
                                 MyTicker ticker = new MyTicker
                                 {
@@ -290,13 +290,13 @@ namespace Broker.Common.WebAPI.Coinbase
                             }
                             if (secondsWebSocket > 0)
                                 System.Threading.Thread.Sleep(secondsWebSocket);
-                        }    
+                        }
                     );
                     await client.Start();
                     Log.Information("-> WebSocket        : Active");
                     exitEvent.WaitOne();
                 }
-            } 
+            }
             catch (Exception ex)
             {
                 Log.Debug(ex.Message + Environment.NewLine + ex.ToString());
@@ -307,7 +307,7 @@ namespace Broker.Common.WebAPI.Coinbase
             // subscribe
             List<string> product = new List<string>(); product.Add(settings.Pair);
             List<object> channels = new List<object>(); channels.Add("ticker");
-            SocketSubscribe subscribe = new SocketSubscribe() 
+            SocketSubscribe subscribe = new SocketSubscribe()
             {
                 type = "subscribe",
                 product_ids = product,
@@ -317,6 +317,10 @@ namespace Broker.Common.WebAPI.Coinbase
             client.Send(JsonConvert.SerializeObject(subscribe));
             Log.Debug("-> WebSocket        : Subscribed");
         }
-    
+
+        public bool GetTrades(MyWebAPISettings settings, out List<MyTrade> trades)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

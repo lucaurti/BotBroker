@@ -17,12 +17,9 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
 
         // properties
         internal decimal BuyAt { get; set; } = 0;
-        //internal decimal BuyAtUp { get; set; } = 0;
         internal decimal SellAt { get; set; } = 0;
-        //internal decimal StopLoss { get; set; } = 0;
         internal decimal CurrentCandleClose { get; set; } = 0;
         internal decimal PreviousCandleClose { get; set; } = 0;
-        //internal decimal LimitShortPrice { get; set; } = 0;
         internal decimal LastHigh { get; set; } = 0;
         internal decimal LastLow { get; set; } = decimal.MaxValue;
 

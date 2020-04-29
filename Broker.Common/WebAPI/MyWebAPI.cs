@@ -303,6 +303,19 @@ namespace Broker.Common.WebAPI
             }
         }
 
+        public bool GetTrades(out List<MyTrade> tradesList)
+        {
+            try
+            {
+                return webAPI.GetTrades(Settings, out tradesList);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+                throw ex;
+            }
+        }
+
         // without parameters
         public bool GetTicker()
         {

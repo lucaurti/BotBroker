@@ -15,9 +15,10 @@ namespace Broker.Common.Events
     public delegate void MyTradeAbortedEventHandler(MyTradeCancelled tradeAborted);
     public delegate void MyTradeCancelledEventHandler(MyTradeCancelled traceCancelled);
     public delegate void MyTradeErroredEventHandler(MyTradeCancelled tradeErrored);
-    public delegate void MyTradeRequestHandler(MyWebAPISettings settings, 
+    public delegate void MyTradeRequestHandler(MyWebAPISettings settings,
         TradeAction tradeType, int? percentage = null, decimal? price = null, decimal? priceLimit = null);
     public delegate void MyWarmUpRequestHandler();
+    public delegate void MyTradesListRequestHandler(MyWebAPISettings settings, out List<MyTrade> tradesList);
 
 
     public interface IEvents
@@ -33,6 +34,7 @@ namespace Broker.Common.Events
         event MyTradeAbortedEventHandler onTradeAborted;
         event MyTradeCancelledEventHandler onTradeCancelled;
         event MyTradeErroredEventHandler onTradeErrored;
+        event MyTradesListRequestHandler onTradesListRequest;
 
 
         // invokers
@@ -43,10 +45,10 @@ namespace Broker.Common.Events
         void OnTradeAborted(MyTradeCancelled tradeAborted);
         void OnTradeCancelled(MyTradeCancelled traceCancelled);
         void OnTradeErrored(MyTradeCancelled tradeErrored);
-        void MyTradeRequest(MyWebAPISettings settings, 
+        void MyTradeRequest(MyWebAPISettings settings,
             TradeAction tradeType, int? percentage = null, decimal? price = null, decimal? priceLimit = null);
         void MyWarmUpRequest();
-
+        void MyTradesListRequest(MyWebAPISettings settings, out List<MyTrade> tradesList);
     }
 
 }

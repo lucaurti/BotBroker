@@ -19,6 +19,6 @@ namespace Broker.Common.WebAPI
         bool GetOrder(MyWebAPISettings settings, string orderID, out MyOrder order);
         bool PostCancelOrder(MyWebAPISettings settings, string orderID);
         bool GetOrderBook(MyWebAPISettings settings, out List<MyOrderBook> orderBook);
-
+        bool GetTrades(MyWebAPISettings settings, out List<MyTrade> trades);
     }
 }

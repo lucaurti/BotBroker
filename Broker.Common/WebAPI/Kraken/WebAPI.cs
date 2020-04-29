@@ -67,7 +67,7 @@ namespace Broker.Common.WebAPI.Kraken
         public bool GetBalance(MyWebAPISettings settings, out List<MyBalance> balances)
         {
             // client 
-            var response = PrivateAsync<Balances.Balance>(settings, BaseEndpoint.AbsoluteUri,"0", "Balance","");
+            var response = PrivateAsync<Balances.Balance>(settings, BaseEndpoint.AbsoluteUri, "0", "Balance", "");
             balances = new List<MyBalance>();
             // save
             foreach (var x in response.result)
@@ -88,34 +88,34 @@ namespace Broker.Common.WebAPI.Kraken
         {
             Order o = new Order(settings.Pair, tradeAction == Enumerator.TradeAction.Long ? "buy" : "sell", "limit", volume, price);
             var reqs = CreateOrder(o);
-            OrderResult response = PrivateAsync<OrderResult>(settings, BaseEndpoint.AbsoluteUri,"0", "AddOrder",reqs);
-            if (response.error.Count==0)
+            OrderResult response = PrivateAsync<OrderResult>(settings, BaseEndpoint.AbsoluteUri, "0", "AddOrder", reqs);
+            if (response.error.Count == 0)
             {
                 orderID = response.result.txid.FirstOrDefault();
                 return true;
             }
-            orderID="";
+            orderID = "";
             return false;
         }
         public bool PostCancelOrder(MyWebAPISettings settings, string orderID)
         {
             string reqs = string.Format("&txid={0}", orderID);
-            CancelledOrders.CancelledOrder response = PrivateAsync<CancelledOrders.CancelledOrder>(settings, BaseEndpoint.AbsoluteUri,"0", "CancelOrder",reqs);
-            if (response.error.Count==0 && response.result.count == 1)
+            CancelledOrders.CancelledOrder response = PrivateAsync<CancelledOrders.CancelledOrder>(settings, BaseEndpoint.AbsoluteUri, "0", "CancelOrder", reqs);
+            if (response.error.Count == 0 && response.result.count == 1)
                 return true;
             return false;
         }
         public bool GetOrder(MyWebAPISettings settings, string orderID, out MyOrder order)
         {
-            string userref="";
+            string userref = "";
             string reqs = string.Format("&trades={0}", true);
             if (!string.IsNullOrEmpty(userref))
                 reqs += string.Format("&userref={0}", userref);
-            OpenedOrders.OpenedOrder response = PrivateAsync<OpenedOrders.OpenedOrder>(settings, BaseEndpoint.AbsoluteUri, "0", "OpenOrders",reqs);
+            OpenedOrders.OpenedOrder response = PrivateAsync<OpenedOrders.OpenedOrder>(settings, BaseEndpoint.AbsoluteUri, "0", "OpenOrders", reqs);
             if (response.error.Count == 0)
             {
-                var requestOrder = response.result.open.orders.Where(item=>item.id==orderID).FirstOrDefault();
-                if (requestOrder!=null)
+                var requestOrder = response.result.open.orders.Where(item => item.id == orderID).FirstOrDefault();
+                if (requestOrder != null)
                 {
                     order = new MyOrder
                     {
@@ -144,18 +144,18 @@ namespace Broker.Common.WebAPI.Kraken
             if (count.HasValue)
                 reqs += string.Format("&count={0}", count.Value.ToString());
             var response = PublicAsync<OrdersBook.OrderBook>(settings, BaseEndpoint.AbsoluteUri, "0", "Depth", reqs);
-            if (response.error.Count==0)
+            if (response.error.Count == 0)
             {
                 var askList = response.result.ListOrderBooks.asks;
                 var bidList = response.result.ListOrderBooks.asks;
-                var list =askList.Union(bidList);
+                var list = askList.Union(bidList);
                 foreach (var x in askList)
                 {
                     MyOrderBook order = new MyOrderBook
                     {
                         Action = Enumerator.TradeAction.Long,
                         Price = x[0].ToString().ToDecimal(),
-                        Timestamp =  Convert.ToUInt64(x[2].ToString()),
+                        Timestamp = Convert.ToUInt64(x[2].ToString()),
                         Volume = x[1].ToString().ToDecimal(),
                         Settings = settings
                     };
@@ -175,7 +175,7 @@ namespace Broker.Common.WebAPI.Kraken
                 }
                 orderBook = orderBook.OrderByDescending(s => s.Timestamp).ThenBy(n => n.Action).ToList();
             }
-            return (orderBook.Count > 0);        
+            return (orderBook.Count > 0);
         }
 
         private HttpWebRequest CreateHttpWebRequest(string requestUri, HttpMethod method)
@@ -209,7 +209,7 @@ namespace Broker.Common.WebAPI.Kraken
         private T PrivateAsync<T>(MyWebAPISettings settings, string baseUri, string version, string methodUri, string props)
         {
             string path = string.Format("/{0}/private/{1}", version, methodUri);
-            string address = baseUri + (path.Remove(0,1));
+            string address = baseUri + (path.Remove(0, 1));
             // generate a 64 bit nonce using a timestamp at tick resolution
             Int64 nonce = DateTime.Now.Ticks;
             props = "nonce=" + nonce + props;
@@ -230,11 +230,11 @@ namespace Broker.Common.WebAPI.Kraken
                     using (StreamReader sr = new StreamReader(str))
                     {
                         var json = sr.ReadToEnd();
-                        if (typeof(T).GetMethod("ToCorrectJson")!=null)
+                        if (typeof(T).GetMethod("ToCorrectJson") != null)
                         {
                             ConstructorInfo constructor = typeof(T).GetConstructor(Type.EmptyTypes);
-                            object instance = constructor.Invoke(new object[]{});
-                            json = (string)typeof(T).GetMethod("ToCorrectJson").Invoke(instance, new object[]{settings, json});
+                            object instance = constructor.Invoke(new object[] { });
+                            json = (string)typeof(T).GetMethod("ToCorrectJson").Invoke(instance, new object[] { settings, json });
                         }
                         return json;
                     }
@@ -316,8 +316,8 @@ namespace Broker.Common.WebAPI.Kraken
                 reqs += "&validate=true";
             if (order.Close != null)
             {
-                string closeString = string.Format("&close[ordertype]={0}&close[price]={1}&close[price2]={2}",order.Close["ordertype"],order.Close["price"],order.Close["price2"]);
-                reqs += closeString;               
+                string closeString = string.Format("&close[ordertype]={0}&close[price]={1}&close[price2]={2}", order.Close["ordertype"], order.Close["price"], order.Close["price2"]);
+                reqs += closeString;
             }
             return reqs;
         }
@@ -384,12 +384,12 @@ namespace Broker.Common.WebAPI.Kraken
         private void WebSocketSubscribe(MyWebAPISettings settings, WebsocketClient client)
         {
             // subscribe
-            List<string> pairs = new List<string>(); 
+            List<string> pairs = new List<string>();
             pairs.Add(settings.Asset.Substring(1) + "/" + settings.Currency.Substring(1));
             Subscription subscription = new Subscription()
             {
-                name ="ticker"
-            }; 
+                name = "ticker"
+            };
             SocketSubscribe subscribe = new SocketSubscribe()
             {
                 @event = "subscribe",
@@ -399,6 +399,10 @@ namespace Broker.Common.WebAPI.Kraken
             string json = JsonConvert.SerializeObject(subscribe);
             client.Send(JsonConvert.SerializeObject(subscribe));
         }
-    
+
+        public bool GetTrades(MyWebAPISettings settings, out List<MyTrade> trades)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

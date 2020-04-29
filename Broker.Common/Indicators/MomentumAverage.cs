@@ -20,8 +20,9 @@ namespace Broker.Common.Indicators
             var newArray = new decimal[periods];
             int i = periods - 1;
             Array.Copy(price, 1, newArray, 0, price.Length - 1);
-            newArray[i] = Val; price = newArray;
-            if (tickcount > periods) 
+            newArray[i] = Val;
+            price = newArray;
+            if (tickcount > periods)
                 emav = (price[i] * 100 / price[0]) - 100;
             if (tickcount <= (periods + 1))
                 tickcount++;
@@ -31,10 +32,10 @@ namespace Broker.Common.Indicators
             return isPrimed() ? emav : 0;
         }
         public bool isPrimed()
-        {    
+        {
             return tickcount > periods;
         }
-        public int PeriodElaborated() 
+        public int PeriodElaborated()
         {
             return tickcount;
         }

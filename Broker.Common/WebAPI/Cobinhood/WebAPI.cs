@@ -12,7 +12,7 @@ namespace Broker.Common.WebAPI.Cobinhood
     {
         // variables
         MyAuthentication authentication;
-        
+
 
         // properties
         Uri BaseEndpoint { get; set; }
@@ -71,7 +71,7 @@ namespace Broker.Common.WebAPI.Cobinhood
         public bool PostNewOrder(MyWebAPISettings settings, Enumerator.TradeAction tradeAction, decimal volume, decimal price, out string orderID)
         {
             // client
-            var response = BaseEndpoint.GetAsync<Orders.Order>(HttpMethod.Post, "trading/orders", authentication, 
+            var response = BaseEndpoint.GetAsync<Orders.Order>(HttpMethod.Post, "trading/orders", authentication,
                 "trading_pair_id=" + settings.Pair, "side=" + (tradeAction == Enumerator.TradeAction.Long ? "bid" : "ask"),
                 "type=limit", "price=" + price.ToPrecision(settings, TypeCoin.Currency), "size=" + volume.ToPrecision(settings, TypeCoin.Asset));
 
@@ -158,12 +158,16 @@ namespace Broker.Common.WebAPI.Cobinhood
         // private functions
         private Enumerator.TradeState ToOrderState(string state)
         {
-            switch(state)
+            switch (state)
             {
                 case "filled": return Enumerator.TradeState.Completed;
                 default: return Enumerator.TradeState.Pending;
             }
         }
 
+        public bool GetTrades(MyWebAPISettings settings, out List<MyTrade> trades)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

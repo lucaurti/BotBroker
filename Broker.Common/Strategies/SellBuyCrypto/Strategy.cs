@@ -7,6 +7,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Telegram.Bot;
 using static Broker.Common.Strategies.Enumerator;
 using static Broker.Common.Strategies.SellBuyCrypto.Values;
@@ -25,7 +26,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
 
 
         // properties
-        private Values Current { get; set; }  = new Values();
+        private Values Current { get; set; } = new Values();
         private Values Saved { get; set; } = new Values();
         TelegramBotClient IStrategy.TelegramBotClient { get => telegramBot; set => telegramBot = value; }
         string IStrategy.TelegramBotPassword { get => telegramPassword; set => telegramPassword = value; }
@@ -79,15 +80,15 @@ namespace Broker.Common.Strategies.SellBuyCrypto
         {
             // check market type
             CheckMarketType();
-            
+
             // adjust values from price
             this.Current.BuyAt = Misc.GetParameterValue("buyAt", "sellbuy").ToDecimal();
             this.Current.SellAt = Misc.GetParameterValue("sellAt", "sellbuy").ToDecimal();
             this.Current.BuyAtUp = Misc.GetParameterValue("buyAtUp", "sellbuy").ToDecimal();
             this.Current.StopLoss = Misc.GetParameterValue("stopLoss", "sellbuy").ToDecimal();
-            this.Current.LimitShortPrice = 
+            this.Current.LimitShortPrice =
                 (
-                    this.Current.PreviousActionPrice * 
+                    this.Current.PreviousActionPrice *
                     Misc.GetParameterValue("limitShortPrice", "sellbuy").ToDecimal()
                 )
                 .Round(myCandle.Settings.PrecisionCurrency);
@@ -96,7 +97,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
             decimal stopLoss = ComputeStopless();
 
             // telegram
-            if (telegramSendLow) 
+            if (telegramSendLow)
             {
                 this.onTradeCandle(CandleType.Low, this.Current.LastLow);
                 telegramSendLow = false;
@@ -132,7 +133,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                 decimal prevPrice = Misc.GetParameterValue("lastActionPrice", "sellbuy").ToDecimal();
                 this.Current.PreviousActionPrice = (this.Current.PreviousAction == ActionType.Buy ? this.Current.LastLow : this.Current.LastHigh);
                 if (prevPrice > 0) this.Current.PreviousActionPrice = prevPrice; this.Current.LastOpDate = DateTime.Now;
-                if (Misc.MustRecoverData && action != ActionType.None && price != null && data != null) 
+                if (Misc.MustRecoverData && action != ActionType.None && price != null && data != null)
                 {
                     this.Saved = this.Current.DeepClone();
                     this.Current.PreviousAction = action;
@@ -213,9 +214,9 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                 Log.Debug("MarketState         : " + this.Current.MarketState.ToString());
 
                 // sell by price
-                if 
+                if
                 (
-                    myCandle.Close > threshold && 
+                    myCandle.Close > threshold &&
                     myCandle.Close <= this.Current.PreviousCandleClose
                 )
                 {
@@ -228,8 +229,8 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                     this.Current.PreviousAction = ActionType.SospSell;
                     this.Current.LastLow = myCandle.Low;
                     this.Current.LastHigh = myCandle.Close;
-                    events.MyTradeRequest(myCandle.Settings, TradeAction.Short, 
-                        int.Parse(Misc.GetParameterValue("shortPercentage", "sellbuy")), 
+                    events.MyTradeRequest(myCandle.Settings, TradeAction.Short,
+                        int.Parse(Misc.GetParameterValue("shortPercentage", "sellbuy")),
                         null, this.Current.LimitShortPrice);
 
                 }
@@ -255,16 +256,16 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                 Log.Debug("MarketState         : " + this.Current.MarketState.ToString());
 
                 // buy by price
-                if 
+                if
                 (
-                    myCandle.Close < threshold && 
+                    myCandle.Close < threshold &&
                     myCandle.Close >= this.Current.PreviousCandleClose
                 )
                 {
 
                     // save old values
                     this.Saved = this.Current.DeepClone();
-                    
+
                     // new parameters
                     Log.Information("-> Signaling advice LONG (normal)");
                     this.Current.PreviousAction = ActionType.SospBuy;
@@ -275,10 +276,10 @@ namespace Broker.Common.Strategies.SellBuyCrypto
 
                 }
                 // buy by sell up
-                else if 
+                else if
                 (
-                    myCandle.Close > sellAtUp && 
-                    myCandle.Close >= this.Current.PreviousCandleClose && 
+                    myCandle.Close > sellAtUp &&
+                    myCandle.Close >= this.Current.PreviousCandleClose &&
                     this.Current.MarketState == MarketType.Bullish
                 )
                 {
@@ -403,7 +404,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                 Log.Information("-> Telegram advice change status: " + status.ToString());
 
                 // change status
-                if (!status) 
+                if (!status)
                     this.Current.PreviousAction = ActionType.Pause;
                 else
                     this.Current.PreviousAction = ToActionType((string)Misc.CacheManager("PreviousAction", Misc.CacheType.Load));
@@ -492,7 +493,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                 this.Current.PreviousAction = ActionType.SospSell;
                 this.Current.LastLow = this.Current.CurrentCandleClose;
                 this.Current.LastHigh = this.Current.CurrentCandleClose;
-                events.MyTradeRequest(settings, TradeAction.Short, 
+                events.MyTradeRequest(settings, TradeAction.Short,
                     int.Parse(Misc.GetParameterValue("shortPercentage", "sellbuy")));
 
                 // telegram
@@ -504,7 +505,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
             string message;
             MyWebAPISettings settings = Misc.GenerateMyWebAPISettings();
 
-            if (this.Current.PreviousAction == ActionType.None) 
+            if (this.Current.PreviousAction == ActionType.None)
             {
                 message = "Trade Status: " +
                     "\nWarmUp in progress.";
@@ -580,18 +581,18 @@ namespace Broker.Common.Strategies.SellBuyCrypto
         {
             if (this.telegramBot == null || this.telegramUsernameTo == null) return;
             var message = "Trade completed. " +
-	            "\nID: " + tradeCompleted.OrderId + 
+                "\nID: " + tradeCompleted.OrderId +
                 "\nAction: " + tradeCompleted.Action +
                 "\nPrice: " + tradeCompleted.Price.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
                 "\nAmount: " + tradeCompleted.Amount.ToPrecision(tradeCompleted.Settings, TypeCoin.Asset) +
                 "\nCost: " + tradeCompleted.Cost.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
                 "\nBalance: " + tradeCompleted.Balance.ToStringRound(2) +
                 "\nEffective price: " + tradeCompleted.EffectivePrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency) +
-	            "\nNew price: " + newPrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-	        if (tradeCompleted.Action == TradeAction.Long)
-		        message += "\nNew stopLoss: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
-	        else if (tradeCompleted.Action == TradeAction.Short)
-		        message += "\nNew sellUp: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+                "\nNew price: " + newPrice.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+            if (tradeCompleted.Action == TradeAction.Long)
+                message += "\nNew stopLoss: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
+            else if (tradeCompleted.Action == TradeAction.Short)
+                message += "\nNew sellUp: " + newUpDown.ToPrecision(tradeCompleted.Settings, TypeCoin.Currency);
             telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message);
         }
         private void onTradeStopCompleted(decimal price, decimal newStopless)
@@ -676,7 +677,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                         int.Parse(Misc.GetParameterValue("stopLossPercentage", "sellbuy")));
 
                     return true;
-                    
+
                 }
 
                 // second or more stoploss signal
@@ -746,7 +747,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
         }
         private void CheckMarketType()
         {
-            
+
             if (this.Current.PreviousAction == ActionType.WarmUp ||
                 this.Current.PreviousAction == ActionType.None)
                 return;
@@ -761,7 +762,7 @@ namespace Broker.Common.Strategies.SellBuyCrypto
                 Line macdLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.MACD, y2 = macdValue };
                 Line signalLine = new Line() { x1 = 0, x2 = 1, y1 = oldMacd.SignalValue, y2 = signalValue };
                 Point c = LineIntersection.FindIntersection(macdLine, signalLine);
-                if (!c.Equals(default(Point))) 
+                if (!c.Equals(default(Point)))
                 {
                     Log.Information("-> Signaling crossover line");
                     Log.Debug("Point Y             : " + c.y.ToStringRound(2));
@@ -789,6 +790,14 @@ namespace Broker.Common.Strategies.SellBuyCrypto
             return stopLossPerc < stopLossMin ? stopLossPerc : stopLossMin;
         }
 
+        public void Events_onIamAlive()
+        {
+            if (this.telegramBot == null || this.telegramUsernameTo == null) return;
+            StringBuilder message = new StringBuilder();
+            message.AppendLine(DateTime.Now.ToShortDateTimeString());
+            message.AppendLine("Broker Alive");
+            telegramBot.SendTextMessageAsync(this.telegramUsernameTo, message.ToString());
+        }
     }
 
 }
