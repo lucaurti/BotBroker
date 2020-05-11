@@ -53,6 +53,13 @@ namespace Broker.Batch
                         Misc.RoundDateTimeCandle,
                         TimeSpan.FromMinutes(Misc.GetCandleTime));
 
+                    // remove old Candle
+                    timerRemoveOldTicker = new Timer(
+                        (e) => TimerRemoveOldCandle_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromMinutes(Misc.GetCandleTime));
+
                     // remove old Ticker
                     timerRemoveOldTicker = new Timer(
                         (e) => TimerRemoveOldTicker_Elapsed(webapi),
@@ -165,6 +172,19 @@ namespace Broker.Batch
             {
                 webapi.GetCandle();
                 Log.Debug("Timer candle elapsed...");
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex);
+            }
+        }
+
+        private void TimerRemoveOldCandle_Elapsed(MyWebAPI webapi)
+        {
+            try
+            {
+                webapi.RemoveOldCandle();
+                Log.Debug("Timer Remove Old Candle elapsed...");
             }
             catch (Exception ex)
             {

@@ -206,22 +206,23 @@ namespace Broker.Common.Strategies
                     price -= Extension.GetSlipPage;
                     if (!Misc.IsPaperTrade)
                     {
-                        decimal exposed = (asset.Amount * price.Value) + currency.Amount;
-                        exposed = 100 - ((currency.Amount / exposed) * 100);
-                        if (exposed > exposedPercentage)
-                        {
-                            MyTradeCancelled aborted = new MyTradeCancelled
-                            {
-                                IdReference = tradeCompleted.Id,
-                                Reason = "Too exposed, asset: " + asset.Amount.ToPrecision(settings, TypeCoin.Asset) +
-                                ", currency: " + currency.Amount.ToPrecision(settings, TypeCoin.Currency) +
-                                ", exposed: " + exposed.ToStringRound(2) + "%",
-                                Settings = settings
-                            };
-                            Log.Information(aborted.Reason);
-                            events.OnTradeAborted(aborted);
-                            return;
-                        }
+                        //disattivata la verifica dell'esposizione
+                        //decimal exposed = (asset.Amount * price.Value) + currency.Amount;
+                        //exposed = 100 - ((currency.Amount / exposed) * 100);
+                        //if (exposed > exposedPercentage)
+                        //{
+                        //    MyTradeCancelled aborted = new MyTradeCancelled
+                        //    {
+                        //        IdReference = tradeCompleted.Id,
+                        //        Reason = "Too exposed, asset: " + asset.Amount.ToPrecision(settings, TypeCoin.Asset) +
+                        //        ", currency: " + currency.Amount.ToPrecision(settings, TypeCoin.Currency) +
+                        //        ", exposed: " + exposed.ToStringRound(2) + "%",
+                        //        Settings = settings
+                        //    };
+                        //    Log.Information(aborted.Reason);
+                        //    events.OnTradeAborted(aborted);
+                        //    return;
+                        //}
 
                         // calculate volume
                         volume = (percentage.HasValue ?

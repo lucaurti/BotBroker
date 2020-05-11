@@ -227,7 +227,7 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
                 LogStrategy.AppendLog("-> Expected LONG (buy)", LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("CandleClose: " + myCandle.Close.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("PreviousMarketState: " + this.Current.PreviousMarketState, LogEventLevel.Debug, LogStrategy.Destination.All);
-                LogStrategy.AppendLog("PreviousBuyPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
+                LogStrategy.AppendLog("PreviousSellPrice: " + this.Current.PreviousActionPrice.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("LimitUpperBuy: " + LimitUpperBuy.ToPrecision(myCandle.Settings, TypeCoin.Currency), LogEventLevel.Debug, LogStrategy.Destination.All);
                 LogStrategy.AppendLog("MarketState: " + this.Current.MarketState.ToString(), LogEventLevel.Debug, LogStrategy.Destination.All);
                 //LogStrategy.AppendLog("ResultVolumeInLastCandle: " + ResultVolumeInLastCandle, LogEventLevel.Debug, LogStrategy.Destination.All);

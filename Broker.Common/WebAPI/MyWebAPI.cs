@@ -204,6 +204,30 @@ namespace Broker.Common.WebAPI
             }
         }
 
+        public void RemoveOldCandle()
+        {
+            BrokerDBContext db = new BrokerDBContext();
+            DateTime data = DateTime.Now.AddDays(-7);
+            long dataTimeStamp = (long)data.ToEpochTime();
+            List<MyCandle> myCandles = db.MyCandles
+                .Where(s => s.Date <= data)
+                .ToList();
+            Log.Debug("Found old candles        : " + myCandles.Count);
+            if (myCandles.Count > 0)
+            {
+                try
+                {
+                    db.MyCandles.RemoveRange(myCandles);
+                    db.SaveChanges();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+                    throw ex;
+                }
+            }
+        }
+
         public bool GetBalance(out List<MyBalance> balance)
         {
             try
