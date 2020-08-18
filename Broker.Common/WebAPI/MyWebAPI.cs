@@ -204,27 +204,66 @@ namespace Broker.Common.WebAPI
             }
         }
 
-        public void RemoveOldCandle()
+        public void RemoveUnnecessaryBalanceAndCandle()
         {
             BrokerDBContext db = new BrokerDBContext();
-            DateTime data = DateTime.Now.AddDays(-7);
-            long dataTimeStamp = (long)data.ToEpochTime();
-            List<MyCandle> myCandles = db.MyCandles
-                .Where(s => s.Date <= data)
-                .ToList();
-            Log.Debug("Found old candles        : " + myCandles.Count);
-            if (myCandles.Count > 0)
+            try
             {
-                try
+                //recupero gli ordini effettuati
+                List<MyOrder> myOrderCreations = db.MyOrders.ToList();
+                List<int> balancesOrder = new List<int>();
+                //recupero il balance legato all'ordine
+                foreach (var myOrderCreation in myOrderCreations)
                 {
-                    db.MyCandles.RemoveRange(myCandles);
-                    db.SaveChanges();
+                    //recupero il balance legato all'ordine al momento della creazione
+                    DateTime dateTimeCreation = myOrderCreation.Creation.ToDateTime();
+                    balancesOrder.AddRange(db.MyBalances
+                        .Where(b => b.Date.Year == dateTimeCreation.Year
+                            && b.Date.Month == dateTimeCreation.Month
+                            && b.Date.Day == dateTimeCreation.Day
+                            && b.Date.Hour == dateTimeCreation.Hour
+                            && b.Date.Minute == dateTimeCreation.Minute).Select(n => n.Id)
+                        .ToList());
+
+                    //recupero il balance legato all'ordine al momento del completamento
+                    DateTime dateTimeCompleted = myOrderCreation.Completed.ToDateTime();
+                    while (dateTimeCompleted.Minute % 5 != 0)
+                    {
+                        dateTimeCompleted = dateTimeCompleted.AddMinutes(1);
+                    }
+                    balancesOrder.AddRange(db.MyBalances
+                        .Where(b => b.Date.Year == dateTimeCompleted.Year
+                            && b.Date.Month == dateTimeCompleted.Month
+                            && b.Date.Day == dateTimeCompleted.Day
+                            && b.Date.Hour == dateTimeCompleted.Hour
+                            && b.Date.Minute == dateTimeCompleted.Minute).Select(n => n.Id)
+                        .ToList());
                 }
-                catch (Exception ex)
-                {
-                    Log.Error(ex.Message + Environment.NewLine + ex.ToString());
-                    throw ex;
-                }
+                //effettuo la distinct
+                balancesOrder = balancesOrder.Distinct().ToList();
+                //recupero le candele lagate al balance
+                List<int> myCandlesNecessary = (from b in db.MyBalances
+                                                where balancesOrder.Contains(b.Id)
+                                                select b.Candle.Id).Distinct().ToList();
+                //recupero tutte le candele non necessarie minore di 8 giorni per evitare conflitti di foreign key con altre tabella
+                List<MyCandle> myCandlesUnnecessary = (from c in db.MyCandles
+                                                       where !myCandlesNecessary.Contains(c.Id)
+                                                            && c.Date < DateTime.Now.AddDays(-8)
+                                                       select c).ToList();
+                //recupero tutte i balance non necessari
+                List<MyBalance> myBalancesUnnecessary = (from b in db.MyBalances
+                                                         where !balancesOrder.Contains(b.Id)
+                                                         select b).ToList();
+                //elimino i balance non necessari
+                db.MyBalances.RemoveRange(myBalancesUnnecessary);
+                //elimino le candele non necessarie
+                db.MyCandles.RemoveRange(myCandlesUnnecessary);
+                db.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+                throw ex;
             }
         }
 

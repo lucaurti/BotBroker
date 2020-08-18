@@ -7,6 +7,7 @@ using Broker.Common.Indicators;
 using Broker.Common.Utility;
 using Broker.Common.WebAPI;
 using Broker.Common.WebAPI.Models;
+using Serilog;
 using Serilog.Events;
 using Telegram.Bot;
 using static Broker.Common.Strategies.Enumerator;
@@ -332,24 +333,37 @@ namespace Broker.Common.Strategies.SellBuyPercMacdNoSellupNoStopLoss
 
         void IStrategy.Events_onTelegramMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
-            if (e.Message.Text.ToLower().StartsWith("/status", StringComparison.Ordinal))
-                this.onEmitStatus(e.Message.Chat.Id);
-            else if (e.Message.Text.ToLower().StartsWith("/short", StringComparison.Ordinal))
-                this.onEmitShort(e.Message.Chat.Id, e.Message.Text);
-            else if (e.Message.Text.ToLower().StartsWith("/long", StringComparison.Ordinal))
-                this.onEmitLong(e.Message.Chat.Id, e.Message.Text);
-            else if (e.Message.Text.ToLower().StartsWith("/reset", StringComparison.Ordinal))
-                this.onEmitReset(e.Message.Chat.Id, e.Message.Text);
-            else if (e.Message.Text.ToLower().StartsWith("/abort", StringComparison.Ordinal))
-                this.onEmitAbort(e.Message.Chat.Id, e.Message.Text);
-            else if (e.Message.Text.ToLower().StartsWith("/pause", StringComparison.Ordinal))
-                this.onEditStatus(e.Message.Chat.Id, e.Message.Text, false);
-            else if (e.Message.Text.ToLower().StartsWith("/resume", StringComparison.Ordinal))
-                this.onEditStatus(e.Message.Chat.Id, e.Message.Text, true);
-            else if (e.Message.Text.ToLower().StartsWith("/setupPrevAction".ToLower(), StringComparison.Ordinal))
-                this.onEditSetupPrevAction(e.Message.Chat.Id, e.Message.Text);
-            else
-                telegramBot.SendTextMessageAsync(e.Message.Chat.Id, "Sorry! I don't understand!");
+            try
+            {
+                Log.Information(e.Message.Text);
+                if (e.Message.Text.ToLower().StartsWith("/status", StringComparison.Ordinal))
+                    this.onEmitStatus(e.Message.Chat.Id);
+                else if (e.Message.Text.ToLower().StartsWith("/short", StringComparison.Ordinal))
+                    this.onEmitShort(e.Message.Chat.Id, e.Message.Text);
+                else if (e.Message.Text.ToLower().StartsWith("/sell", StringComparison.Ordinal))
+                    this.onEmitShort(e.Message.Chat.Id, e.Message.Text);
+                else if (e.Message.Text.ToLower().StartsWith("/long", StringComparison.Ordinal))
+                    this.onEmitLong(e.Message.Chat.Id, e.Message.Text);
+                else if (e.Message.Text.ToLower().StartsWith("/buy", StringComparison.Ordinal))
+                    this.onEmitLong(e.Message.Chat.Id, e.Message.Text);
+                else if (e.Message.Text.ToLower().StartsWith("/reset", StringComparison.Ordinal))
+                    this.onEmitReset(e.Message.Chat.Id, e.Message.Text);
+                else if (e.Message.Text.ToLower().StartsWith("/abort", StringComparison.Ordinal))
+                    this.onEmitAbort(e.Message.Chat.Id, e.Message.Text);
+                else if (e.Message.Text.ToLower().StartsWith("/pause", StringComparison.Ordinal))
+                    this.onEditStatus(e.Message.Chat.Id, e.Message.Text, false);
+                else if (e.Message.Text.ToLower().StartsWith("/resume", StringComparison.Ordinal))
+                    this.onEditStatus(e.Message.Chat.Id, e.Message.Text, true);
+                else if (e.Message.Text.ToLower().StartsWith("/setupPrevAction".ToLower(), StringComparison.Ordinal))
+                    this.onEditSetupPrevAction(e.Message.Chat.Id, e.Message.Text);
+                else
+                    telegramBot.SendTextMessageAsync(e.Message.Chat.Id, "Sorry! I don't understand!");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.Message + Environment.NewLine + ex.ToString());
+            }
+
         }
 
         private void onEditSetupPrevAction(long chatId, string text)

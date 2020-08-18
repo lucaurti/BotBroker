@@ -25,24 +25,24 @@ namespace Broker.Common.Strategies.StopLoss
 
 
         // saved properties
-        internal decimal PreviousActionPrice 
-        { 
-            get 
-            { 
-                return previousActionPrice; 
+        internal decimal PreviousActionPrice
+        {
+            get
+            {
+                return previousActionPrice;
             }
-            set 
+            set
             {
                 previousActionPrice = value;
                 Misc.CacheManager("PreviousActionPrice", Misc.CacheType.Save, value);
             }
         }
-        internal ActionType PreviousAction 
-        { 
+        internal ActionType PreviousAction
+        {
             get
             {
                 return previousAction;
-            } 
+            }
             set
             {
                 previousAction = value;
@@ -54,24 +54,24 @@ namespace Broker.Common.Strategies.StopLoss
                     Misc.CacheManager("BotInPause", Misc.CacheType.Save, false);
             }
         }
-        internal DateTime LastOpDate 
-        { 
+        internal DateTime LastOpDate
+        {
             get
             {
                 return lastOpDate;
-            } 
+            }
             set
             {
                 lastOpDate = value;
                 Misc.CacheManager("LastOpDate", Misc.CacheType.Save, value);
             }
         }
-        internal MarketType MarketState 
-        { 
+        internal MarketType MarketState
+        {
             get
             {
                 return marketState;
-            } 
+            }
             set
             {
                 marketState = value;
@@ -103,7 +103,7 @@ namespace Broker.Common.Strategies.StopLoss
         // function
         internal static ActionType ToActionType(string action)
         {
-            if (action == null) 
+            if (action == null)
                 return ActionType.None;
             switch (action.ToLower())
             {
@@ -118,7 +118,7 @@ namespace Broker.Common.Strategies.StopLoss
         }
         internal static MarketType ToMarketType(string action)
         {
-            if (action == null) 
+            if (action == null)
                 return MarketType.None;
             switch (action.ToLower())
             {

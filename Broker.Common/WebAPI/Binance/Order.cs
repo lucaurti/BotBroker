@@ -4,7 +4,7 @@
     internal class Order
     {
         public string symbol { get; set; }
-        public int orderId { get; set; }
+        public long orderId { get; set; }
         public string clientOrderId { get; set; }
         public string price { get; set; }
         public string origQty { get; set; }

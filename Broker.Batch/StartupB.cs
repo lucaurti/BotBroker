@@ -19,10 +19,12 @@ namespace Broker.Batch
         private Timer timerTicker { get; set; } = null;
         private Timer timerCandle { get; set; } = null;
         private Timer timerRemoveOldTicker { get; set; } = null;
+        private Timer timerRemoveOldCandle { get; set; } = null;
         private Timer timerRemoveOldRsi { get; set; } = null;
         private Timer timerRemoveOldMacd { get; set; } = null;
         private Timer timerRemoveOldMomentum { get; set; } = null;
         private Timer timerIamAlive { get; set; } = null;
+        private Timer timerRemoveUnnecessaryBalanceAndCandle { get; set; } = null;
 
 
         // services endpoint
@@ -54,11 +56,11 @@ namespace Broker.Batch
                         TimeSpan.FromMinutes(Misc.GetCandleTime));
 
                     // remove old Candle
-                    timerRemoveOldTicker = new Timer(
-                        (e) => TimerRemoveOldCandle_Elapsed(webapi),
-                        null,
-                        Misc.RoundDateTimeCandle,
-                        TimeSpan.FromMinutes(Misc.GetCandleTime));
+                    //timerRemoveOldCandle = new Timer(
+                    //    (e) => TimerRemoveOldCandle_Elapsed(webapi),
+                    //    null,
+                    //    Misc.RoundDateTimeCandle,
+                    //    TimeSpan.FromMinutes(Misc.GetCandleTime));
 
                     // remove old Ticker
                     timerRemoveOldTicker = new Timer(
@@ -88,9 +90,16 @@ namespace Broker.Batch
                         Misc.RoundDateTimeCandle,
                         TimeSpan.FromMinutes(Misc.GetCandleTime));
 
-                    // remove old macd
+                    // Broker Alive
                     timerIamAlive = new Timer(
                         (e) => TimerIamAlive_Elapsed(webapi),
+                        null,
+                        Misc.RoundDateTimeCandle,
+                        TimeSpan.FromHours(24));
+
+                    // remove unnecessary balance
+                    timerRemoveUnnecessaryBalanceAndCandle = new Timer(
+                        (e) => TimerRemoveUnnecessaryBalanceAndCandle_Elapsed(webapi),
                         null,
                         Misc.RoundDateTimeCandle,
                         TimeSpan.FromHours(24));
@@ -105,6 +114,7 @@ namespace Broker.Batch
 
         private static void TestCode(MyWebAPI webapi)
         {
+            //webapi.RemoveUnnecessaryBalanceAndCandle();
             //var list = new List<Common.WebAPI.Models.MyOrderBook>();
             //webapi.GetOrderBook(out list);
             //decimal ris = 0;
@@ -138,11 +148,13 @@ namespace Broker.Batch
                 timerTicker?.Change(Timeout.Infinite, 0);
                 timerCandle?.Change(Timeout.Infinite, 0);
                 timerRemoveOldTicker?.Change(Timeout.Infinite, 0);
+                timerRemoveOldCandle?.Change(Timeout.Infinite, 0);
                 timerRemoveOldMacd?.Change(Timeout.Infinite, 0);
                 timerRemoveOldMomentum?.Change(Timeout.Infinite, 0);
                 timerRemoveOldRsi?.Change(Timeout.Infinite, 0);
+                timerIamAlive?.Change(Timeout.Infinite, 0);
+                timerRemoveUnnecessaryBalanceAndCandle?.Change(Timeout.Infinite, 0);
                 Log.Information("*** Broker ended ***");
-
             }
             catch (Exception ex)
             {
@@ -179,18 +191,18 @@ namespace Broker.Batch
             }
         }
 
-        private void TimerRemoveOldCandle_Elapsed(MyWebAPI webapi)
-        {
-            try
-            {
-                webapi.RemoveOldCandle();
-                Log.Debug("Timer Remove Old Candle elapsed...");
-            }
-            catch (Exception ex)
-            {
-                Utils.LogError(ex);
-            }
-        }
+        //private void TimerRemoveOldCandle_Elapsed(MyWebAPI webapi)
+        //{
+        //    try
+        //    {
+        //        webapi.RemoveOldCandle();
+        //        Log.Debug("Timer Remove Old Candle elapsed...");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Utils.LogError(ex);
+        //    }
+        //}
 
         private void TimerRemoveOldTicker_Elapsed(MyWebAPI webapi)
         {
@@ -257,6 +269,19 @@ namespace Broker.Batch
             }
         }
 
+        private void TimerRemoveUnnecessaryBalanceAndCandle_Elapsed(MyWebAPI webapi)
+        {
+            try
+            {
+                webapi.RemoveUnnecessaryBalanceAndCandle();
+                Log.Debug("Timer Remove Unnecessary Balance elapsed...");
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex);
+            }
+        }
+
         // functions
         public void Dispose()
         {
@@ -265,9 +290,12 @@ namespace Broker.Batch
                 timerTicker?.Dispose();
                 timerCandle?.Dispose();
                 timerRemoveOldTicker?.Dispose();
+                timerRemoveOldCandle?.Dispose();
                 timerRemoveOldMacd?.Dispose();
                 timerRemoveOldMomentum?.Dispose();
                 timerRemoveOldRsi?.Dispose();
+                timerRemoveUnnecessaryBalanceAndCandle?.Dispose();
+                timerIamAlive?.Dispose();
             }
             catch (Exception ex)
             {
